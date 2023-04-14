@@ -2,8 +2,8 @@ package handler
 
 const ctxKeyDescUserId = "user_id"
 
-type UserIdKey struct{}
+type ctxKeyUserId struct{}
 
-func (k UserIdKey) KeyDescription() string {
-  return ctxKeyDescUserId
+func (ctxKeyUserId) KeyDescription() string {
+	return ctxKeyDescUserId
 }

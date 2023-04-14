@@ -2,12 +2,11 @@ module main
 
 go 1.19
 
-replace (
-	github.com/UshakovN/stock-predictor-service latest => ../pkg latest
-)
+replace github.com/UshakovN/stock-predictor-service v0.0.0-20230414193523-7fa2be658f07 => ../pkg
 
 require (
 	github.com/Masterminds/squirrel v1.5.4
+	github.com/UshakovN/stock-predictor-service v0.0.0-20230414193523-7fa2be658f07
 	github.com/google/uuid v1.3.0
 	github.com/jackc/pgconn v1.14.0
 	github.com/jackc/pgx/v4 v4.18.1
@@ -15,6 +14,7 @@ require (
 )
 
 require (
+	github.com/dgrijalva/jwt-go v3.2.0+incompatible // indirect
 	github.com/jackc/chunkreader/v2 v2.0.1 // indirect
 	github.com/jackc/pgio v1.0.0 // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect
@@ -27,4 +27,5 @@ require (
 	golang.org/x/crypto v0.6.0 // indirect
 	golang.org/x/sys v0.5.0 // indirect
 	golang.org/x/text v0.7.0 // indirect
+	gopkg.in/yaml.v3 v3.0.1 // indirect
 )

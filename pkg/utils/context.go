@@ -1,44 +1,43 @@
 package utils
 
 import (
-  "context"
-  "errors"
-  "fmt"
-  "net/http"
+	"context"
+	"errors"
+	"fmt"
 )
 
 var (
-  errValueNotFound = errors.New("value not found")
-  errTypeAssertion = errors.New("type assertion failed")
+	ErrCtxValueNotFound = errors.New("value not found")
+	ErrCtxTypeAssertion = errors.New("type assertion failed")
 )
 
 type CtxKey interface {
-  KeyDescription() string
+	KeyDescription() string
 }
 
-func GetReqCtxValue[T any](r *http.Request, key CtxKey) (T, error) {
-  var defaultVal T
-  ctxValue := r.Context().Value(key)
-  if ctxValue == nil {
-    return defaultVal, fmt.Errorf("%w: key '%s' in request context",
-      errValueNotFound, key.KeyDescription())
-  }
-  value, ok := ctxValue.(T)
-  if !ok {
-    return defaultVal, fmt.Errorf("%w: expected type '%T', actual value: '%v'",
-      errTypeAssertion, defaultVal, ctxValue)
-  }
-  return value, nil
+func GetCtxValue[T any](ctx context.Context, key CtxKey) (T, error) {
+	var defaultVal T
+	ctxValue := ctx.Value(key)
+	if ctxValue == nil {
+		return defaultVal, fmt.Errorf("%w: key '%s' in request context",
+			ErrCtxValueNotFound, key.KeyDescription())
+	}
+	value, ok := ctxValue.(T)
+	if !ok {
+		return defaultVal, fmt.Errorf("%w: expected type '%T', actual value: '%v'",
+			ErrCtxTypeAssertion, defaultVal, ctxValue)
+	}
+	return value, nil
 }
 
 type CtxMap map[CtxKey]any
 
 func AddCtxValues(ctx context.Context, m CtxMap) context.Context {
-  childCtx := ctx
-  parentCtx := ctx
-  for key, val := range m {
-    childCtx = context.WithValue(parentCtx, key, val)
-    parentCtx = childCtx
-  }
-  return childCtx
+	childCtx := ctx
+	parentCtx := ctx
+	for key, val := range m {
+		childCtx = context.WithValue(parentCtx, key, val)
+		parentCtx = childCtx
+	}
+	return childCtx
 }
