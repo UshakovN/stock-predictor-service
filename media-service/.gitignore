@@ -3,3 +3,4 @@
 *.sql
 *.sqllite
 *.yaml
+/stored_media
