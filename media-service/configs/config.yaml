@@ -1,0 +1,17 @@
+host_prefix: localhost
+
+storage_config:
+  host: localhost
+  port: 5438
+  user: postgres
+  password: scp
+  db_name: postgres
+  ssl_mode: disable
+
+queue_config:
+  user: rabbit
+  password: scp
+  host: localhost
+  port: 5672
+  queue_key: media_service_queue
+

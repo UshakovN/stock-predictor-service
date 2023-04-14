@@ -1,0 +1,6 @@
+.idea
+*.db
+*.sql
+*.sqllite
+*.yaml
+/internal/storage/db/*.sqlite
