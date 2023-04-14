@@ -1,0 +1,15 @@
+# sha256 digest from 'stock-predictor-service'
+password_salt: 63071cfea6be52aadcd12e4170499a339eb5f481f2fa99b6d265ec335581ef77
+
+# sha256 digest from 'stock-predictor-service'
+token_sign_key: 63071cfea6be52aadcd12e4170499a339eb5f481f2fa99b6d265ec335581ef77
+
+token_ttl_minutes: 3600 # for 'debug mode'
+
+storage_config:
+  host: localhost
+  port: 5434
+  user: postgres
+  password: scp
+  db_name: postgres
+  ssl_mode: disable

@@ -55,7 +55,8 @@ func (h *Handler) BindRouter() {
 	http.Handle("/sign-up", errs.MiddlewareErr(h.HandleSignUp))
 	http.Handle("/sign-in", errs.MiddlewareErr(h.HandleSignIn))
 	http.Handle("/refresh", errs.MiddlewareErr(h.HandleRefresh))
-	http.Handle("/check-user", errs.MiddlewareErr(h.MiddlewareAuth(h.HandleCheckUser)))
+	http.Handle("/check", errs.MiddlewareErr(h.MiddlewareAuth(h.HandleCheck)))
+	http.Handle("/health", errs.MiddlewareErr(h.HandleHealth))
 }
 
 func (h *Handler) MiddlewareAuth(handler errs.HandlerErr) errs.HandlerErr {
@@ -135,7 +136,7 @@ func (h *Handler) HandleSignIn(w http.ResponseWriter, r *http.Request) error {
 }
 
 func (h *Handler) HandleRefresh(w http.ResponseWriter, r *http.Request) error {
-	req := RefreshRequest{}
+	req := &RefreshRequest{}
 
 	if err := utils.ReadRequest(r, req); err != nil {
 		return err
@@ -158,8 +159,8 @@ func (h *Handler) HandleRefresh(w http.ResponseWriter, r *http.Request) error {
 	return nil
 }
 
-func (h *Handler) HandleCheckUser(w http.ResponseWriter, r *http.Request) error {
-	req := CheckUserRequest{}
+func (h *Handler) HandleCheck(w http.ResponseWriter, r *http.Request) error {
+	req := &CheckUserRequest{}
 
 	if err := utils.ReadRequest(r, req); err != nil {
 		return err
@@ -193,4 +194,13 @@ func (h *Handler) ContinuouslyServeHttp(port string) {
 	if err != nil {
 		log.Fatalf("listen and serve error: %v", err)
 	}
+}
+
+func (h *Handler) HandleHealth(w http.ResponseWriter, _ *http.Request) error {
+	w.WriteHeader(http.StatusOK)
+	_, err := w.Write([]byte("/ok"))
+	if err != nil {
+		return fmt.Errorf("cannot write to response writer: %v", err)
+	}
+	return nil
 }
