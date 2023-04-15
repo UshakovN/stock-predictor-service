@@ -8,6 +8,7 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/UshakovN/stock-predictor-service/config"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -19,7 +20,7 @@ func main() {
 	flag.Parse()
 
 	cfg := handler.NewConfig()
-	if err := cfg.Parse(*configPath); err != nil {
+	if err := config.Parse(*configPath, cfg); err != nil {
 		log.Fatalf("cannot parse fetcher config: %v", err)
 	}
 

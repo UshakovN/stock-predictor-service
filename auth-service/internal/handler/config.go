@@ -1,10 +1,7 @@
 package handler
 
 import (
-	"fmt"
-
 	"github.com/UshakovN/stock-predictor-service/postgres"
-	"github.com/UshakovN/stock-predictor-service/utils"
 )
 
 type Config struct {
@@ -16,14 +13,4 @@ type Config struct {
 
 func NewConfig() *Config {
 	return &Config{}
-}
-
-func (c *Config) Parse(configPath string) error {
-	if c == nil {
-		return fmt.Errorf("fetcher config is a nil")
-	}
-	if err := utils.ParseYamlConfig(configPath, c); err != nil {
-		return fmt.Errorf("cannot parse yaml config: %v", err)
-	}
-	return utils.CheckRequiredFields(c)
 }
