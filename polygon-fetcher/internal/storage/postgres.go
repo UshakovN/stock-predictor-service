@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"main/internal/domain"
+	"sync"
 	"sync/atomic"
 
 	sq "github.com/Masterminds/squirrel"
@@ -264,12 +265,16 @@ func (s *storage) doGetQuery(builder queryBuilder, fields ...any) (bool, error) 
 }
 
 func scanFirstQueriedRow(rows pgx.Rows, fields []any) (bool, error) {
-	var hasScannedRow bool
-	if rows.Next() {
-		if err := rows.Scan(fields...); err != nil {
-			return false, fmt.Errorf("cannot scan queried row: %v", err)
-		}
-		hasScannedRow = true
+	var (
+		hasRows bool
+		err     error
+	)
+	once := sync.Once{}
+	for rows.Next() {
+		once.Do(func() {
+			err = rows.Scan(fields...)
+			hasRows = true
+		})
 	}
-	return hasScannedRow, nil
+	return hasRows, err
 }

@@ -7,7 +7,6 @@ import (
 	"main/internal/domain"
 	"main/internal/queue"
 	"main/internal/storage"
-	"mime"
 	"os"
 	"strings"
 
@@ -45,10 +44,11 @@ func NewMediaService(ctx context.Context, config *Config) (MediaService, error) 
 }
 
 func (m *mediaService) GetMedia(input *domain.GetMediaInput) (*domain.Media, error) {
-	mediaFileId, err := formMediaFileId(input.Name, input.Section, input.ContentType)
+	mediaFileId, err := formMediaFileId(input.Name, input.Section)
 	if err != nil {
 		return nil, fmt.Errorf("cannot form media file name: %v", err)
 	}
+
 	storedMedia, found, err := m.storage.GetStoredMedia(mediaFileId)
 	if err != nil {
 		return nil, fmt.Errorf("cannot get stored media file: %v", err)
@@ -59,6 +59,7 @@ func (m *mediaService) GetMedia(input *domain.GetMediaInput) (*domain.Media, err
 				input.Name, input.Section, mediaFileId),
 		})
 	}
+
 	media := &domain.Media{
 		SourceUrl: storedMedia.FormedURL,
 	}
@@ -77,7 +78,6 @@ func (m *mediaService) HandleQueueMessages() error {
 		createFileResult, err := createNewMediaFileOrIgnore(
 			message.MetaInfo.Name,
 			message.MetaInfo.Section,
-			message.MetaInfo.ContentType,
 			message.MetaInfo.Overwrite,
 			message.Content,
 		)
@@ -89,7 +89,7 @@ func (m *mediaService) HandleQueueMessages() error {
 		}
 		formedFileUrl := formMediaFileUrl(m.hostPrefix, createFileResult.filePath)
 
-		err = m.storage.PutStoredMedia(&domain.StoredMedia{
+		err = m.storage.PutStoredMedia(&storage.StoredMedia{
 			StoredMediaId: createFileResult.formedFileId,
 			FormedURL:     formedFileUrl,
 			CreatedBy:     message.MetaInfo.From,
@@ -109,25 +109,29 @@ type createFileResult struct {
 	filePath             string
 }
 
-func createNewMediaFileOrIgnore(fileName, sectionName, contentType string, overwrite bool, content []byte) (*createFileResult, error) {
+func createNewMediaFileOrIgnore(
+	fileName string,
+	sectionName string,
+	overwrite bool,
+	content []byte,
+) (*createFileResult, error) {
+
 	const (
 		filePathTemplate = "%s/%s.%s" // stored-media-path/file-id.extension
 		fileCreateMode   = 0644       // user read-write | group read | other read
 	)
-	fileExtensions, err := mime.ExtensionsByType(contentType)
-	if err != nil {
-		return nil, fmt.Errorf("cannot get file extensions for content type '%s': %v", contentType, err)
-	}
-	if len(fileExtensions) == 0 {
-		return nil, fmt.Errorf("file extension not found for content type '%s'", contentType)
-	}
-	fileExt := normalizeFileExtension(fileExtensions[0])
 
 	// get other file name for base security
-	fileId, err := formMediaFileId(fileName, sectionName, contentType)
+	fileId, err := formMediaFileId(fileName, sectionName)
 	if err != nil {
 		return nil, fmt.Errorf("cannot form media file id: %v", err)
 	}
+
+	fileExt, err := utils.ExtractFileExtension(fileName)
+	if err != nil {
+		return nil, fmt.Errorf("cannot extract media file extension: %v", err)
+	}
+
 	// form path for file
 	filePath := fmt.Sprintf(filePathTemplate, DirStoredMedia, fileId, fileExt)
 
@@ -174,25 +178,13 @@ func formMediaFileUrl(hostPrefix, filePath string) string {
 	return fmt.Sprintf(fileUrlTemplate, hostPrefix, filePath)
 }
 
-func formMediaFileId(fileName, sectionName, contentType string) (string, error) {
+func formMediaFileId(fileName, sectionName string) (string, error) {
 	sb := strings.Builder{}
 	sb.WriteString(fileName)
 	sb.WriteString(sectionName)
-	sb.WriteString(contentType)
 
 	fileInfo := []byte(sb.String())
 	hashedFileInfo := fmt.Sprintf("%x", sha256.Sum256(fileInfo))
 
 	return hashedFileInfo, nil
-}
-
-func normalizeFileExtension(fileExtension string) string {
-	fileExtension = strings.Trim(fileExtension, ".")
-	correctExtensionsMap := map[string]string{
-		"jpe": "jpg",
-	}
-	if correctExtension, ok := correctExtensionsMap[fileExtension]; ok {
-		return correctExtension
-	}
-	return fileExtension
 }

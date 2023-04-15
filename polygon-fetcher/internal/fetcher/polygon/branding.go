@@ -10,33 +10,30 @@ import (
 
 func (f *Fetcher) formMsgForBrandingImage(tickerId, imageURL, brandingType string) (*domain.PutMessage, error) {
 	const (
-		headerContentType   = "Content-Type"
-		headerContentLength = "Content-Length"
-		blobContentType     = "application/octet-stream"
-		sectionName         = "polygon_references"
-		nameDashSep         = "-"
+		sectionName = "polygon_references"
+		nameDashSep = "-"
+		nameDotSep  = "."
 	)
 	imageResp, err := f.client.GetFullResp(imageURL)
 	if err != nil {
 		return nil, fmt.Errorf("cannot get image response for ticker '%s': %v", tickerId, err)
 	}
 
-	contentType, ok := imageResp.Headers.Get(headerContentType)
-	if !ok {
-		contentType = blobContentType
+	imageExtension, err := utils.ExtractFileExtension(imageURL)
+	if err != nil {
+		return nil, fmt.Errorf("cannot extract image extension from url '%s': %v", err, imageURL)
 	}
-	imageName := fmt.Sprint(tickerId, nameDashSep, brandingType)
-	contentLength := imageResp.Headers.GetOrDefault(headerContentLength)
+
+	// ticker_id-branding_type.extension
+	imageName := fmt.Sprint(tickerId, nameDashSep, brandingType, nameDotSep, imageExtension)
 
 	return &domain.PutMessage{
 		MetaInfo: &domain.PutMessageMetaInfo{
-			Name:          imageName,
-			Section:       sectionName,
-			ContentType:   contentType,
-			ContentLength: contentLength,
-			Overwrite:     false,
-			From:          fetcherName,
-			Timestamp:     utils.NowTimestampUTC(),
+			Name:      imageName,
+			Section:   sectionName,
+			Overwrite: false,
+			From:      fetcherName,
+			Timestamp: utils.NowTimestampUTC(),
 		},
 		Content: imageResp.Content,
 	}, nil
@@ -51,6 +48,7 @@ func (f *Fetcher) sendMessagesToPutTickerBranding(tickerId string, branding *tic
 		return nil
 	}
 	iconURL := strings.TrimSpace(branding.IconUrl)
+
 	if iconURL != "" {
 		// form and send message if icon url not empty
 		iconPutMsg, err := f.formMsgForBrandingImage(tickerId, iconURL, brandingTypeIcon)

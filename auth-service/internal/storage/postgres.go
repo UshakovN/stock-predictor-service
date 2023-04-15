@@ -247,13 +247,11 @@ func scanFirstQueriedRow(rows pgx.Rows, fields []any) (bool, error) {
 		err     error
 	)
 	once := sync.Once{}
-
 	for rows.Next() {
 		once.Do(func() {
 			err = rows.Scan(fields...)
 			hasRows = true
 		})
 	}
-
 	return hasRows, err
 }

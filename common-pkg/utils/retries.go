@@ -15,19 +15,19 @@ type HandlerFuncE func() error
 
 type HandlerFunc func()
 
-type Option struct {
+type RetryOption struct {
 	RetryCount   int
 	WaitInterval time.Duration
 }
 
-func NewDefaultOption() *Option {
-	return &Option{
+func NewDefaultOption() *RetryOption {
+	return &RetryOption{
 		RetryCount:   retryCount,
 		WaitInterval: waitInterval,
 	}
 }
 
-func (o *Option) TrySet(option *Option) {
+func (o *RetryOption) TrySet(option *RetryOption) {
 	if option == nil {
 		return
 	}
@@ -41,7 +41,7 @@ func (o *Option) TrySet(option *Option) {
 	o.WaitInterval = option.WaitInterval
 }
 
-func DoWithRetry(h HandlerFuncE, options ...*Option) error {
+func DoWithRetry(h HandlerFuncE, options ...*RetryOption) error {
 	option := ExtractOptional(options...)
 	retryOption := NewDefaultOption()
 	retryOption.TrySet(option)

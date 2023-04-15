@@ -1,8 +1,8 @@
 package handler
 
 import (
-	"main/internal/queue/rabbitmq"
-	"main/internal/storage/postgres"
+	"github.com/UshakovN/stock-predictor-service/postgres"
+	"github.com/UshakovN/stock-predictor-service/rabbitmq"
 )
 
 type Config struct {

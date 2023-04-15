@@ -4,8 +4,9 @@ import (
 	"context"
 	"fmt"
 	"main/internal/domain"
-	"main/internal/queue/rabbitmq"
+	"time"
 
+	"github.com/UshakovN/stock-predictor-service/rabbitmq"
 	"github.com/UshakovN/stock-predictor-service/utils"
 	ampq "github.com/rabbitmq/amqp091-go"
 	log "github.com/sirupsen/logrus"
@@ -28,7 +29,7 @@ const (
 	consumeNoWait  = false
 
 	ackNoMultiple = false
-	ackRequeue    = true
+	ackRequeue    = false
 )
 
 type MessageHandler func(message *domain.PutMessage) error
@@ -99,8 +100,9 @@ func (msq *mediaServiceQueue) ConsumeMessages(handler MessageHandler) error {
 	if handler == nil {
 		return fmt.Errorf("message handler is a nil")
 	}
-	var args ampq.Table // dummy args
-
+	var (
+		args ampq.Table // dummy args
+	)
 	consumerChan, err := msq.mq.Consume(
 		msq.key,
 		consumeName,
@@ -113,7 +115,10 @@ func (msq *mediaServiceQueue) ConsumeMessages(handler MessageHandler) error {
 	if err != nil {
 		return fmt.Errorf("cannot consume messages from '%s' queue", msq.key)
 	}
-
+	const (
+		handlerRetryCount   = 5
+		handlerWaitInterval = 1 * time.Second
+	)
 	go func() {
 		for delivery := range consumerChan {
 			// form domain message
@@ -132,9 +137,14 @@ func (msq *mediaServiceQueue) ConsumeMessages(handler MessageHandler) error {
 					return fmt.Errorf("cannot handle %s. error: %v", messageDesc, err)
 				}
 				return nil
-			})
+			},
+				&utils.RetryOption{
+					RetryCount:   handlerRetryCount,
+					WaitInterval: handlerWaitInterval,
+				})
 			if err != nil {
 				log.Errorf("handle failed for %s. error: %v", messageDesc, err)
+
 				// send delivery negative acknowledgement to consumer and do requeue
 				if err = delivery.Nack(ackNoMultiple, ackRequeue); err != nil {
 					log.Errorf("cannot nack consumer about not handled delivery: %v", err)

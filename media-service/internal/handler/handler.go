@@ -46,7 +46,8 @@ func (h *Handler) BindRouter() {
 	http.Handle("/stored_media/", bindFileServer())
 
 	http.Handle("/get", errs.MiddlewareErr(h.HandleGet))
-	http.Handle("/put", errs.MiddlewareErr(h.HandlePut))
+	http.Handle("/get-batch", errs.MiddlewareErr(h.HandleGetBatch))
+	http.Handle("/put-queue", errs.MiddlewareErr(h.HandlePutQueue))
 	http.Handle("/health", errs.MiddlewareErr(h.HandleHealth))
 
 	log.Printf("handler router is configured")
@@ -66,11 +67,10 @@ func (h *Handler) HandleGet(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 	media, err := h.service.GetMedia(&domain.GetMediaInput{
-		Name:        req.Name,
-		Section:     req.Section,
-		ContentType: req.ContentType,
-		From:        fromMediaServiceHttp,
-		Timestamp:   utils.NowTimestampUTC(),
+		Name:      req.Name,
+		Section:   req.Section,
+		From:      fromMediaServiceHttp,
+		Timestamp: utils.NowTimestampUTC(),
 	})
 	if err != nil {
 		return err
@@ -84,7 +84,12 @@ func (h *Handler) HandleGet(w http.ResponseWriter, r *http.Request) error {
 	return nil
 }
 
-func (h *Handler) HandlePut(w http.ResponseWriter, r *http.Request) error {
+func (h *Handler) HandleGetBatch(w http.ResponseWriter, r *http.Request) error {
+
+	return nil
+}
+
+func (h *Handler) HandlePutQueue(w http.ResponseWriter, r *http.Request) error {
 	const queuedRespField = true
 
 	req := &PutRequest{}
@@ -95,14 +100,12 @@ func (h *Handler) HandlePut(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 	if err := h.service.PutMedia(&domain.PutMediaInput{
-		Name:          req.Name,
-		Section:       req.Section,
-		Content:       req.Content,
-		ContentType:   req.ContentType,
-		ContentLength: req.ContentLength,
-		Overwrite:     req.Overwrite,
-		From:          fromMediaServiceHttp,
-		Timestamp:     utils.NowTimestampUTC(),
+		Name:      req.Name,
+		Section:   req.Section,
+		Content:   req.Content,
+		Overwrite: req.Overwrite,
+		From:      fromMediaServiceHttp,
+		Timestamp: utils.NowTimestampUTC(),
 	}); err != nil {
 		return err
 	}
