@@ -12,7 +12,8 @@ type ServiceUser struct {
 }
 
 type RefreshToken struct {
-	TokenId string `json:"token_id"`
-	Active  bool   `json:"active"`
-	UserId  string `json:"user_id"`
+	TokenId   string    `json:"token_id"`
+	Active    bool      `json:"active"`
+	UserId    string    `json:"user_id"`
+	CreatedAt time.Time `json:"created_at"`
 }

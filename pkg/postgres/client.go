@@ -17,7 +17,14 @@ type Client interface {
 	Exec(ctx context.Context, sql string, arguments ...any) (pgconn.CommandTag, error)
 	Query(ctx context.Context, sql string, args ...any) (pgx.Rows, error)
 	QueryRow(ctx context.Context, sql string, args ...any) pgx.Row
+	BeginTx(ctx context.Context, txOptions pgx.TxOptions) (pgx.Tx, error)
+	BeginTxFunc(ctx context.Context, txOptions pgx.TxOptions, f func(pgx.Tx) error) error
 }
+
+type (
+	ExecFunc  func(ctx context.Context, sql string, arguments ...any) (pgconn.CommandTag, error)
+	QueryFunc func(ctx context.Context, sql string, args ...any) (pgx.Rows, error)
+)
 
 func NewClient(ctx context.Context, config *Config) (Client, error) {
 	strConn := config.ConnectString()
@@ -37,6 +44,5 @@ func NewClient(ctx context.Context, config *Config) (Client, error) {
 	if err != nil {
 		return nil, fmt.Errorf("connection to posgtres pgx driver failed: %v", err)
 	}
-
 	return pgxConn, nil
 }

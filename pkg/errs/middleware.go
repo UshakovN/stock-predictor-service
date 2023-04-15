@@ -22,13 +22,26 @@ func MiddlewareErr(handler HandlerErr) http.HandlerFunc {
 		if errors.As(handlerErr, &appErr) {
 			switch appErr.Type {
 			// define another app errors this
-			case ErrTypeMethodNotSupported:
+			case
+				ErrTypeMethodNotSupported:
+				//
 				statusCode = http.StatusMethodNotAllowed
-			case ErrTypeBodyNotFound, ErrTypeMalformedRequest:
+			case
+				ErrTypeBodyNotFound,
+				ErrTypeMalformedRequest,
+				ErrTypeUserAlreadyExist:
+				//
 				statusCode = http.StatusBadRequest
-			case ErrTypeNotFoundContent:
+			case
+				ErrTypeNotFoundContent:
+				//
 				statusCode = http.StatusNotFound
-			case ErrTypeMalformedToken, ErrTypeForbidden, ErrTypeExpiredToken:
+			case
+				ErrTypeMalformedToken,
+				ErrTypeForbidden,
+				ErrTypeExpiredToken,
+				ErrTypeWrongCredentials:
+				//
 				statusCode = http.StatusForbidden
 			default:
 				statusCode = http.StatusInternalServerError

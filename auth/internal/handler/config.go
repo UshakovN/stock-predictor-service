@@ -2,8 +2,8 @@ package handler
 
 import (
 	"fmt"
-	"main/internal/storage/postgres"
 
+	"github.com/UshakovN/stock-predictor-service/postgres"
 	"github.com/UshakovN/stock-predictor-service/utils"
 )
 

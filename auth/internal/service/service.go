@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"main/internal/domain"
 	"main/internal/storage"
@@ -55,18 +56,15 @@ func (s *userAuthService) SignUp(input *domain.SignUpInput) (*domain.Tokens, err
 		Active:       true,
 		CreatedAt:    utils.NotTimeUTC(),
 	}); err != nil {
+		if errors.Is(err, storage.ErrUserAlreadyExist) {
+			return nil, errs.NewError(errs.ErrTypeUserAlreadyExist, nil)
+		}
 		return nil, fmt.Errorf("cannot put user to storage: %v", err)
 	}
 
-	userTokens, err := s.newUserTokens(userId)
+	userTokens, err := s.newUserSession(userId)
 	if err != nil {
-		return nil, fmt.Errorf("cannot create user tokens: %v", err)
-	}
-	if err := s.storage.PutToken(&storage.RefreshToken{
-		TokenId: userTokens.Refresh,
-		Active:  true,
-	}); err != nil {
-		return nil, fmt.Errorf("cannot put refresh token to storage: %v", err)
+		return nil, fmt.Errorf("cannot create user session: %v", err)
 	}
 
 	return userTokens, nil
@@ -82,7 +80,7 @@ func (s *userAuthService) SignIn(input *domain.SignInInput) (*domain.Tokens, err
 	}
 
 	if serviceUser.PasswordHash != s.passwordManager.Hash(input.Password) {
-		return nil, fmt.Errorf("specified wrong password")
+		return nil, errs.NewError(errs.ErrTypeWrongCredentials, nil)
 	}
 	userTokens, err := s.newUserSession(serviceUser.UserId)
 	if err != nil {
@@ -141,8 +139,10 @@ func (s *userAuthService) newUserSession(userId string) (*domain.Tokens, error) 
 	}
 
 	if err := s.storage.PutToken(&storage.RefreshToken{
-		TokenId: userTokens.Refresh,
-		Active:  true,
+		TokenId:   userTokens.Refresh,
+		Active:    true,
+		UserId:    userId,
+		CreatedAt: utils.NotTimeUTC(),
 	}); err != nil {
 		return nil, fmt.Errorf("cannot put refresh token to storage: %v", err)
 	}

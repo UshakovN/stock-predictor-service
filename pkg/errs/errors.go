@@ -21,6 +21,8 @@ const (
 	ErrTypeMalformedToken
 	ErrTypeForbidden
 	ErrTypeExpiredToken
+	ErrTypeUserAlreadyExist
+	ErrTypeWrongCredentials
 )
 
 const (
@@ -32,6 +34,8 @@ const (
 	messageMalformedToken      = "malformed token"
 	messageForbidden           = "forbidden"
 	messageExpiredToken        = "expired token"
+	messageUserAlreadyExist    = "user already exist"
+	messageWrongCredentials    = "wrong credentials"
 )
 
 type Error struct {
@@ -74,6 +78,10 @@ func NewError(errType int, logMessage *LogMessage) *Error {
 		err.Message = messageForbidden
 	case ErrTypeExpiredToken:
 		err.Message = messageExpiredToken
+	case ErrTypeUserAlreadyExist:
+		err.Message = messageUserAlreadyExist
+	case ErrTypeWrongCredentials:
+		err.Message = messageWrongCredentials
 	default:
 		err.Message = messageInternalServerError
 	}

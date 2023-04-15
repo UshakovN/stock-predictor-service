@@ -61,7 +61,7 @@ func (h *Handler) BindRouter() {
 
 func (h *Handler) MiddlewareAuth(handler errs.HandlerErr) errs.HandlerErr {
 	const (
-		authHeader = "x-auth-header"
+		authHeader = "x-auth-token"
 	)
 	return func(w http.ResponseWriter, r *http.Request) error {
 		accessToken := r.Header.Get(authHeader)
@@ -81,7 +81,7 @@ func (h *Handler) MiddlewareAuth(handler errs.HandlerErr) errs.HandlerErr {
 }
 
 func (h *Handler) HandleSignUp(w http.ResponseWriter, r *http.Request) error {
-	req := SignUpRequest{}
+	req := &SignUpRequest{}
 
 	if err := utils.ReadRequest(r, req); err != nil {
 		return err
@@ -109,7 +109,7 @@ func (h *Handler) HandleSignUp(w http.ResponseWriter, r *http.Request) error {
 }
 
 func (h *Handler) HandleSignIn(w http.ResponseWriter, r *http.Request) error {
-	req := SingInRequest{}
+	req := &SingInRequest{}
 
 	if err := utils.ReadRequest(r, req); err != nil {
 		return err
