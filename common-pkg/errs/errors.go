@@ -2,6 +2,7 @@ package errs
 
 import (
 	"encoding/json"
+	"errors"
 
 	log "github.com/sirupsen/logrus"
 )
@@ -16,12 +17,10 @@ const (
 	ErrTypeMethodNotSupported
 	ErrTypeBodyNotFound
 	ErrTypeMalformedRequest
-	ErrTypeInternalServerError
 	ErrTypeNotFoundContent
 	ErrTypeMalformedToken
 	ErrTypeForbidden
 	ErrTypeExpiredToken
-	ErrTypeUserAlreadyExist
 	ErrTypeWrongCredentials
 )
 
@@ -34,7 +33,6 @@ const (
 	messageMalformedToken      = "malformed token"
 	messageForbidden           = "forbidden"
 	messageExpiredToken        = "expired token"
-	messageUserAlreadyExist    = "user already exist"
 	messageWrongCredentials    = "wrong credentials"
 )
 
@@ -78,8 +76,6 @@ func NewError(errType int, logMessage *LogMessage) *Error {
 		err.Message = messageForbidden
 	case ErrTypeExpiredToken:
 		err.Message = messageExpiredToken
-	case ErrTypeUserAlreadyExist:
-		err.Message = messageUserAlreadyExist
 	case ErrTypeWrongCredentials:
 		err.Message = messageWrongCredentials
 	default:
@@ -109,4 +105,13 @@ func (e *Error) Log() {
 			log.Errorln(e.LogMessage.Err.Error())
 		}
 	}
+}
+
+func ErrIs(err error, targets ...error) bool {
+	for _, target := range targets {
+		if errors.Is(err, target) {
+			return true
+		}
+	}
+	return false
 }

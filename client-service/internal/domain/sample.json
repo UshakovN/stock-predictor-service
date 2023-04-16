@@ -1,0 +1,19 @@
+{
+  "pagination": {
+    "page": 1,
+    "count": 10
+  },
+  "sort": {
+    "field": "fil",
+    "order": "desc"
+  },
+  "filter": {
+    "field": "",
+    "value": null,
+    "compare": "eq | gt | gte | lt | lte"
+  },
+  "between_filter": {
+    "left_border": null,
+    "right_border": null
+  }
+}

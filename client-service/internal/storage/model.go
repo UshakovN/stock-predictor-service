@@ -6,19 +6,15 @@ type Ticker struct {
 	TickerId           string    `json:"ticker_id"`
 	CompanyName        string    `json:"company_name"`
 	CompanyLocale      string    `json:"company_locale"`
-	CurrencyName       string    `json:"currency_name"`
 	CompanyDescription string    `json:"company_description"`
-	HomepageUrl        string    `json:"homepage_url"`
-	PhoneNumber        string    `json:"phone_number"`
-	TotalEmployees     int       `json:"total_employees"`
 	CompanyState       string    `json:"company_state"`
 	CompanyCity        string    `json:"company_city"`
 	CompanyAddress     string    `json:"company_address"`
-	CompanyPostalCode  string    `json:"company_postal_code"`
-	TickerCik          string    `json:"ticker_cik"`
+	HomepageUrl        string    `json:"homepage_url"`
+	CurrencyName       string    `json:"currency_name"`
+	TotalEmployees     int       `json:"total_employees"`
 	Active             bool      `json:"active"`
 	CreatedAt          time.Time `json:"created_at"`
-	ExternalUpdatedAt  time.Time `json:"external_updated_at"`
 }
 
 type Stock struct {

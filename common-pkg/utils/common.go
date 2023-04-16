@@ -40,3 +40,12 @@ func ExtractFileExtension(filePath string) (string, error) {
 	}
 	return imageExtension, nil
 }
+
+func ToMap[T any, K comparable](items []T, extractor func(T) K) map[K]T {
+	itemsMap := map[K]T{}
+
+	for _, item := range items {
+		itemsMap[extractor(item)] = item
+	}
+	return itemsMap
+}

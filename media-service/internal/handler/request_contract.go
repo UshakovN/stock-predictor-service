@@ -16,7 +16,7 @@ type PutRequest struct {
 }
 
 type PutResponse struct {
-	Queued bool `json:"queued"`
+	Queued bool `json:"success_queued"`
 }
 
 type GetRequest struct {
@@ -25,11 +25,18 @@ type GetRequest struct {
 }
 
 type GetResponse struct {
-	SourceUrl string `json:"source_url"`
+	Found     bool   `json:"found"`
+	Name      string `json:"name"`
+	Section   string `json:"section"`
+	SourceUrl string `json:"source_url,omitempty"`
 }
 
 type GetBatchRequest struct {
 	Parts []*GetRequest `json:"parts"`
+}
+
+type GetBatchResponse struct {
+	Parts []*GetResponse `json:"parts"`
 }
 
 func (r *PutRequest) Validate() error {

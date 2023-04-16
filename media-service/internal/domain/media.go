@@ -30,5 +30,8 @@ func (p *PutMediaInput) ToMessage() *PutMessage {
 }
 
 type Media struct {
+	Found     bool   `json:"found"`
+	Name      string `json:"name"`
+	Section   string `json:"section"`
 	SourceUrl string `json:"source_url"`
 }

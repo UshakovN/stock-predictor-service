@@ -3,7 +3,6 @@ package storage
 import (
 	"context"
 	"fmt"
-	"sync"
 	"sync/atomic"
 
 	sq "github.com/Masterminds/squirrel"
@@ -59,7 +58,7 @@ func (s *storage) PutStoredMedia(storedMedia *StoredMedia) error {
 		Suffix(`ON CONFLICT (stored_media_id) DO NOTHING`).
 		PlaceholderFormat(sq.Dollar)
 
-	if err := s.doPutQuery(builder); err != nil {
+	if err := s.doExec(builder); err != nil {
 		return err
 	}
 	log.Infof("put stored media with id '%s'. total: %d",
@@ -84,7 +83,11 @@ func (s *storage) GetStoredMedia(storedMediaId string) (*StoredMedia, bool, erro
 
 	storedMedia := &StoredMedia{}
 
-	found, err := s.doGetQuery(builder,
+	queriedRows, err := s.doQuery(builder)
+	if err != nil {
+		return nil, false, err
+	}
+	found, err := scanQueriedRow(queriedRows,
 		&storedMedia.StoredMediaId,
 		&storedMedia.FormedURL,
 		&storedMedia.CreatedBy,
@@ -101,7 +104,7 @@ func (s *storage) GetStoredMedia(storedMediaId string) (*StoredMedia, bool, erro
 }
 
 func (s *storage) GetStoredMediaBatch(storedMediaIds []string) ([]*StoredMedia, error) {
-	_ = sq.
+	builder := sq.
 		Select(
 			`stored_media_id`,
 			`formed_url`,
@@ -111,19 +114,50 @@ func (s *storage) GetStoredMediaBatch(storedMediaIds []string) ([]*StoredMedia, 
 		From(`stored_media`).
 		Where(sq.Eq{
 			`stored_media_id`: storedMediaIds,
-		})
+		}).
+		PlaceholderFormat(sq.Dollar)
 
-	// TODO: complete this
+	queriedRows, err := s.doQuery(builder)
+	if err != nil {
+		return nil, err
+	}
+	var storedMediaBatch []*StoredMedia
 
-	return nil, nil
+	for {
+		storedMedia := &StoredMedia{}
+		found, err := scanQueriedRow(queriedRows,
+			&storedMedia.StoredMediaId,
+			&storedMedia.FormedURL,
+			&storedMedia.CreatedBy,
+			&storedMedia.CreatedAt,
+		)
+		if err != nil {
+			return nil, err
+		}
+		if !found {
+			break
+		}
+		storedMediaBatch = append(storedMediaBatch, storedMedia)
+	}
+
+	return storedMediaBatch, nil
 }
 
-func (s *storage) doPutQuery(builder queryBuilder) error {
+func (s *storage) doExec(builder queryBuilder) error {
 	query, args := mustBuildQuery(builder)
 	if _, err := s.client.Exec(s.ctx, query, args...); err != nil {
 		return fmt.Errorf("cannot do exec: %v", err)
 	}
 	return nil
+}
+
+func (s *storage) doQuery(builder queryBuilder) (pgx.Rows, error) {
+	query, args := mustBuildQuery(builder)
+	rows, err := s.client.Query(s.ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("cannot do query: %v", err)
+	}
+	return rows, err
 }
 
 func mustBuildQuery(builder queryBuilder) (string, []any) {
@@ -134,26 +168,13 @@ func mustBuildQuery(builder queryBuilder) (string, []any) {
 	return query, args
 }
 
-func (s *storage) doGetQuery(builder queryBuilder, fields ...any) (bool, error) {
-	query, args := mustBuildQuery(builder)
-	rows, err := s.client.Query(s.ctx, query, args...)
-	if err != nil {
-		return false, fmt.Errorf("cannot do query: %v", err)
+func scanQueriedRow(rows pgx.Rows, fields ...any) (bool, error) {
+	var hasRow bool
+	if rows.Next() {
+		if err := rows.Scan(fields...); err != nil {
+			return false, fmt.Errorf("cannot scan queried row: %v", err)
+		}
+		hasRow = true
 	}
-	return scanFirstQueriedRow(rows, fields)
-}
-
-func scanFirstQueriedRow(rows pgx.Rows, fields []any) (bool, error) {
-	var (
-		hasRows bool
-		err     error
-	)
-	once := sync.Once{}
-	for rows.Next() {
-		once.Do(func() {
-			err = rows.Scan(fields...)
-			hasRows = true
-		})
-	}
-	return hasRows, err
+	return hasRow, nil
 }

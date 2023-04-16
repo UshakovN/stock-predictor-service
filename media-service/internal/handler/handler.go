@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 	"main/internal/domain"
-	"main/internal/manager"
 	"main/internal/queue"
+	"main/internal/service"
 	"main/internal/storage"
 	"net/http"
 
@@ -18,7 +18,7 @@ const fromMediaServiceHttp = "media_service_http"
 
 type Handler struct {
 	ctx     context.Context
-	service manager.MediaService
+	service service.MediaService
 }
 
 func NewHandler(ctx context.Context, hostPrefix string, config *Config) (*Handler, error) {
@@ -28,7 +28,7 @@ func NewHandler(ctx context.Context, hostPrefix string, config *Config) (*Handle
 	}
 	msStorage, err := storage.NewStorage(ctx, config.StorageConfig)
 
-	service, err := manager.NewMediaService(ctx, &manager.Config{
+	service, err := service.NewMediaService(ctx, &service.Config{
 		MsQueue:    msQueue,
 		Storage:    msStorage,
 		HostPrefix: hostPrefix, // inject host prefix for serve media content
@@ -54,7 +54,7 @@ func (h *Handler) BindRouter() {
 }
 
 func bindFileServer() http.Handler {
-	fs := http.FileServer(http.Dir(manager.DirStoredMedia))
+	fs := http.FileServer(http.Dir(service.DirStoredMedia))
 	return http.StripPrefix("/stored_media/", fs)
 }
 
@@ -75,17 +75,39 @@ func (h *Handler) HandleGet(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return err
 	}
-
-	if err = utils.WriteResponse(w, &GetResponse{
-		SourceUrl: media.SourceUrl,
-	}, http.StatusOK); err != nil {
+	if err = utils.WriteResponse(w, formGetResponse(media), http.StatusOK); err != nil {
 		return nil
 	}
 	return nil
 }
 
 func (h *Handler) HandleGetBatch(w http.ResponseWriter, r *http.Request) error {
+	req := &GetBatchRequest{}
+	if err := utils.ReadRequest(r, req); err != nil {
+		return err
+	}
+	if err := req.Validate(); err != nil {
+		return err
+	}
+	inputs := make([]*domain.GetMediaInput, 0, len(req.Parts))
 
+	for _, part := range req.Parts {
+		inputs = append(inputs, &domain.GetMediaInput{
+			Name:      part.Name,
+			Section:   part.Section,
+			From:      fromMediaServiceHttp,
+			Timestamp: utils.NowTimestampUTC(),
+		})
+	}
+
+	mediaBatch, err := h.service.GetMediaBatch(inputs)
+	if err != nil {
+		return err
+	}
+
+	if err := utils.WriteResponse(w, formGetBatchResponse(mediaBatch), http.StatusOK); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -99,6 +121,7 @@ func (h *Handler) HandlePutQueue(w http.ResponseWriter, r *http.Request) error {
 	if err := req.Validate(); err != nil {
 		return err
 	}
+
 	if err := h.service.PutMedia(&domain.PutMediaInput{
 		Name:      req.Name,
 		Section:   req.Section,
@@ -109,6 +132,7 @@ func (h *Handler) HandlePutQueue(w http.ResponseWriter, r *http.Request) error {
 	}); err != nil {
 		return err
 	}
+
 	if err := utils.WriteResponse(w, &PutResponse{
 		Queued: queuedRespField,
 	}, http.StatusAccepted); err != nil {
@@ -138,5 +162,25 @@ func (h *Handler) ContinuouslyServeQueue() {
 	err := h.service.HandleQueueMessages()
 	if err != nil {
 		log.Fatalf("handle queue messages error: %v", err)
+	}
+}
+
+func formGetResponse(media *domain.Media) *GetResponse {
+	return &GetResponse{
+		Found:     media.Found,
+		Name:      media.Name,
+		Section:   media.Section,
+		SourceUrl: media.SourceUrl,
+	}
+}
+
+func formGetBatchResponse(mediaBatch []*domain.Media) *GetBatchResponse {
+	parts := make([]*GetResponse, 0, len(mediaBatch))
+
+	for _, media := range mediaBatch {
+		parts = append(parts, formGetResponse(media))
+	}
+	return &GetBatchResponse{
+		Parts: parts,
 	}
 }

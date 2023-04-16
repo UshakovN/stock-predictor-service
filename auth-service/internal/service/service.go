@@ -57,7 +57,8 @@ func (s *userAuthService) SignUp(input *domain.SignUpInput) (*domain.Tokens, err
 		CreatedAt:    utils.NotTimeUTC(),
 	}); err != nil {
 		if errors.Is(err, storage.ErrUserAlreadyExist) {
-			return nil, errs.NewError(errs.ErrTypeUserAlreadyExist, nil)
+			return nil, errs.NewErrorWithMessage(errs.ErrTypeMalformedRequest,
+				"user already exist", nil)
 		}
 		return nil, fmt.Errorf("cannot put user to storage: %v", err)
 	}

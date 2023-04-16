@@ -1,4 +1,4 @@
-package manager
+package service
 
 import (
 	"context"
@@ -10,7 +10,6 @@ import (
 	"os"
 	"strings"
 
-	"github.com/UshakovN/stock-predictor-service/errs"
 	"github.com/UshakovN/stock-predictor-service/utils"
 )
 
@@ -18,6 +17,7 @@ const DirStoredMedia = "./stored_media"
 
 type MediaService interface {
 	GetMedia(input *domain.GetMediaInput) (*domain.Media, error)
+	GetMediaBatch(inputs []*domain.GetMediaInput) ([]*domain.Media, error)
 	PutMedia(input *domain.PutMediaInput) error
 	HandleQueueMessages() error
 }
@@ -44,26 +44,55 @@ func NewMediaService(ctx context.Context, config *Config) (MediaService, error) 
 }
 
 func (m *mediaService) GetMedia(input *domain.GetMediaInput) (*domain.Media, error) {
-	mediaFileId, err := formMediaFileId(input.Name, input.Section)
-	if err != nil {
-		return nil, fmt.Errorf("cannot form media file name: %v", err)
-	}
+	mediaFileId := formMediaFileId(input.Name, input.Section)
 
 	storedMedia, found, err := m.storage.GetStoredMedia(mediaFileId)
 	if err != nil {
 		return nil, fmt.Errorf("cannot get stored media file: %v", err)
 	}
-	if !found {
-		return nil, errs.NewError(errs.ErrTypeNotFoundContent, &errs.LogMessage{
-			Err: fmt.Errorf("media with name '%s', section '%s', id '%s' not found",
-				input.Name, input.Section, mediaFileId),
-		})
-	}
-
 	media := &domain.Media{
-		SourceUrl: storedMedia.FormedURL,
+		Name:    input.Name,
+		Section: input.Section,
+	}
+	if found {
+		media.Found = true
+		media.SourceUrl = storedMedia.FormedURL
 	}
 	return media, nil
+}
+
+func (m *mediaService) GetMediaBatch(inputs []*domain.GetMediaInput) ([]*domain.Media, error) {
+	mediaFileIds := make([]string, 0, len(inputs))
+
+	for _, input := range inputs {
+		fileId := formMediaFileId(input.Name, input.Section)
+		mediaFileIds = append(mediaFileIds, fileId)
+	}
+	storedMedia, err := m.storage.GetStoredMediaBatch(mediaFileIds)
+	if err != nil {
+		return nil, fmt.Errorf("cannot get stored media batch: %v", err)
+	}
+
+	storedMediaMap := utils.ToMap(storedMedia, func(media *storage.StoredMedia) string {
+		return media.StoredMediaId
+	})
+	mediaBatch := make([]*domain.Media, 0, len(inputs))
+
+	for inputIdx, input := range inputs {
+		fileId := mediaFileIds[inputIdx]
+
+		media := &domain.Media{
+			Name:    input.Name,
+			Section: input.Section,
+		}
+		if storedMedia, found := storedMediaMap[fileId]; found {
+			media.Found = true
+			media.SourceUrl = storedMedia.FormedURL
+		}
+		mediaBatch = append(mediaBatch, media)
+	}
+
+	return mediaBatch, nil
 }
 
 func (m *mediaService) PutMedia(input *domain.PutMediaInput) error {
@@ -122,10 +151,7 @@ func createNewMediaFileOrIgnore(
 	)
 
 	// get other file name for base security
-	fileId, err := formMediaFileId(fileName, sectionName)
-	if err != nil {
-		return nil, fmt.Errorf("cannot form media file id: %v", err)
-	}
+	fileId := formMediaFileId(fileName, sectionName)
 
 	fileExt, err := utils.ExtractFileExtension(fileName)
 	if err != nil {
@@ -178,7 +204,7 @@ func formMediaFileUrl(hostPrefix, filePath string) string {
 	return fmt.Sprintf(fileUrlTemplate, hostPrefix, filePath)
 }
 
-func formMediaFileId(fileName, sectionName string) (string, error) {
+func formMediaFileId(fileName, sectionName string) string {
 	sb := strings.Builder{}
 	sb.WriteString(fileName)
 	sb.WriteString(sectionName)
@@ -186,5 +212,5 @@ func formMediaFileId(fileName, sectionName string) (string, error) {
 	fileInfo := []byte(sb.String())
 	hashedFileInfo := fmt.Sprintf("%x", sha256.Sum256(fileInfo))
 
-	return hashedFileInfo, nil
+	return hashedFileInfo
 }
