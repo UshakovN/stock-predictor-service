@@ -1,7 +1,12 @@
 package service
 
-import "context"
+import (
+  "main/internal/storage"
+
+  "github.com/UshakovN/stock-predictor-service/httpclient"
+)
 
 type Config struct {
-	Ctx context.Context
+  Storage   storage.Storage
+  ApiClient httpclient.HttpClient
 }

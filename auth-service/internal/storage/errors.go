@@ -2,6 +2,4 @@ package storage
 
 import "errors"
 
-var (
-	ErrUserAlreadyExist = errors.New("user already exist")
-)
+var ErrUserAlreadyExist = errors.New("user already exist")

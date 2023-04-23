@@ -1,33 +1,33 @@
 package storage
 
 type CompareTokenizer interface {
-	Token() string
+  Token() string
 }
 
 type (
-	EqTokenizer  struct{}
-	GtTokenizer  struct{}
-	GteTokenizer struct{}
-	LtTokenizer  struct{}
-	LteTokenizer struct{}
+  EqTokenizer  struct{}
+  GtTokenizer  struct{}
+  GteTokenizer struct{}
+  LtTokenizer  struct{}
+  LteTokenizer struct{}
 )
 
 func (EqTokenizer) Token() string {
-	return "="
+  return "="
 }
 
 func (GtTokenizer) Token() string {
-	return ">"
+  return ">"
 }
 
 func (GteTokenizer) Token() string {
-	return ">="
+  return ">="
 }
 
 func (LtTokenizer) Token() string {
-	return "<"
+  return "<"
 }
 
 func (LteTokenizer) Token() string {
-	return "<="
+  return "<="
 }

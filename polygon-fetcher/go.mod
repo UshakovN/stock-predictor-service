@@ -2,7 +2,7 @@ module main
 
 go 1.19
 
-replace github.com/UshakovN/stock-predictor-service v0.0.0-20230414193523-7fa2be658f07 => ./../common-pkg
+replace github.com/UshakovN/stock-predictor-service v0.0.0-20230414193523-7fa2be658f07 => ./../pkg
 
 require (
 	github.com/Masterminds/squirrel v1.5.4

@@ -1,0 +1,9 @@
+media_service_prefix: http://localhost:8081
+
+storage_config:
+  host: localhost
+  port: 5436
+  user: postgres
+  password: scp
+  db_name: postgres
+  ssl_mode: disable
