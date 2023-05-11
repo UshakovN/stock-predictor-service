@@ -1,0 +1,48 @@
+{
+  "settings": {
+    "analysis": {
+      "filter": {
+        "autocomplete_filter": {
+          "type": "ngram",
+          "min_gram": 1,
+          "max_gram": 10
+        }
+      },
+      "analyzer": {
+        "autocomplete": {
+          "type": "custom",
+          "tokenizer": "standard",
+          "filter": [
+            "lowercase",
+            "autocomplete_filter"
+          ]
+        }
+      }
+    },
+    "index.max_ngram_diff" : 10
+  },
+  "mappings": {
+    "properties": {
+      "ticker_id": {
+        "type": "text",
+        "analyzer": "autocomplete",
+        "search_analyzer": "standard"
+      },
+      "company_name": {
+        "type": "text",
+        "analyzer": "autocomplete",
+        "search_analyzer": "standard"
+      },
+      "company_description": {
+        "type": "text",
+        "analyzer": "autocomplete",
+        "search_analyzer": "standard"
+      },
+      "homepage_url": {
+        "type": "text",
+        "analyzer": "autocomplete",
+        "search_analyzer": "standard"
+      }
+    }
+  }
+}

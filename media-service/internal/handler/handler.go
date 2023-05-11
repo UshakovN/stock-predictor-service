@@ -10,9 +10,11 @@ import (
   "net/http"
   "strings"
 
+  authservice "github.com/UshakovN/stock-predictor-service/contract/auth-service"
   "github.com/UshakovN/stock-predictor-service/contract/common"
   "github.com/UshakovN/stock-predictor-service/contract/media-service"
   "github.com/UshakovN/stock-predictor-service/errs"
+  "github.com/UshakovN/stock-predictor-service/hash"
   "github.com/UshakovN/stock-predictor-service/utils"
   log "github.com/sirupsen/logrus"
 )
@@ -22,6 +24,7 @@ const fromMediaServiceHttp = "media_service_http"
 type Handler struct {
   ctx        context.Context
   service    service.MediaService
+  auth       authservice.Client
   hostPrefix string
 }
 
@@ -31,17 +34,22 @@ func NewHandler(ctx context.Context, hostPrefix string, config *Config) (*Handle
     return nil, fmt.Errorf("cannot create new media service queue: %v", err)
   }
   msStorage, err := storage.NewStorage(ctx, config.StorageConfig)
+  hashManager := hash.NewManager(config.MediaServiceHashSalt)
 
   mediaService, err := service.NewMediaService(ctx, &service.Config{
-    MsQueue: msQueue,
-    Storage: msStorage,
+    MsQueue:     msQueue,
+    Storage:     msStorage,
+    HashManager: hashManager,
   })
   if err != nil {
     return nil, fmt.Errorf("cannot create new media service: %v", err)
   }
+  auth := authservice.NewClient(ctx, config.AuthServicePrefix, config.MediaServiceApiToken)
+
   return &Handler{
     ctx:        ctx,
     service:    mediaService,
+    auth:       auth,
     hostPrefix: hostPrefix, // inject host prefix for serve media content
   }, nil
 }
@@ -49,9 +57,9 @@ func NewHandler(ctx context.Context, hostPrefix string, config *Config) (*Handle
 func (h *Handler) BindRouter() {
   http.Handle("/stored_media/", bindFileServer())
 
-  http.Handle("/get", errs.MiddlewareErr(h.HandleGet))
-  http.Handle("/get-batch", errs.MiddlewareErr(h.HandleGetBatch))
-  http.Handle("/put-queue", errs.MiddlewareErr(h.HandlePutQueue))
+  http.Handle("/get", errs.MiddlewareErr(h.auth.AuthMiddleware(h.HandleGet)))
+  http.Handle("/get-batch", errs.MiddlewareErr(h.auth.AuthMiddleware(h.HandleGetBatch)))
+  http.Handle("/put-queue", errs.MiddlewareErr(h.auth.AuthMiddleware(h.HandlePutQueue)))
   http.Handle("/health", errs.MiddlewareErr(h.HandleHealth))
 
   log.Printf("handler router is configured")

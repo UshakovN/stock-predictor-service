@@ -7,14 +7,16 @@ replace github.com/UshakovN/stock-predictor-service v0.0.0-20230414193523-7fa2be
 require (
 	github.com/Masterminds/squirrel v1.5.4
 	github.com/UshakovN/stock-predictor-service v0.0.0-20230414193523-7fa2be658f07
-	github.com/jackc/pgconn v1.14.0
 	github.com/jackc/pgx/v4 v4.18.1
 	github.com/rabbitmq/amqp091-go v1.8.0
 	github.com/sirupsen/logrus v1.9.0
 )
 
 require (
+	github.com/UshakovN/token-bucket v1.1.0 // indirect
+	github.com/google/uuid v1.3.0 // indirect
 	github.com/jackc/chunkreader/v2 v2.0.1 // indirect
+	github.com/jackc/pgconn v1.14.0 // indirect
 	github.com/jackc/pgio v1.0.0 // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect
 	github.com/jackc/pgproto3/v2 v2.3.2 // indirect

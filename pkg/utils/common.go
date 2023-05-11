@@ -61,19 +61,3 @@ func FillFrom[T, S any](source T, dest S) error {
   }
   return nil
 }
-
-func Unique[T comparable](items []T) []T {
-  m := map[T]struct{}{}
-
-  for _, item := range items {
-    if _, ok := m[item]; !ok {
-      m[item] = struct{}{}
-    }
-  }
-  var unique []T
-
-  for item := range m {
-    unique = append(unique, item)
-  }
-  return unique
-}

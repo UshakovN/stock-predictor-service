@@ -9,7 +9,7 @@ import (
   "main/internal/storage"
 
   "github.com/UshakovN/stock-predictor-service/auth"
-  "github.com/UshakovN/stock-predictor-service/contract/auth-service"
+  authservice "github.com/UshakovN/stock-predictor-service/contract/auth-service"
   "github.com/UshakovN/stock-predictor-service/contract/common"
   "github.com/UshakovN/stock-predictor-service/errs"
   "github.com/UshakovN/stock-predictor-service/hash"
@@ -21,9 +21,10 @@ import (
 )
 
 type Handler struct {
-  ctx     context.Context
-  manager auth.TokenManager
-  service service.UserAuthService
+  ctx      context.Context
+  manager  auth.TokenManager
+  service  service.UserAuthService
+  apiToken string
 }
 
 func NewHandler(ctx context.Context, config *Config) (*Handler, error) {
@@ -62,13 +63,12 @@ func (h *Handler) BindRouter() {
 }
 
 func (h *Handler) MiddlewareAuth(handler errs.HandlerErr) errs.HandlerErr {
-  const (
-    authHeader = "x-auth-token"
-  )
   return func(w http.ResponseWriter, r *http.Request) error {
-    accessToken := r.Header.Get(authHeader)
-
-    userId, err := h.manager.Parse(accessToken)
+    authToken := r.Header.Get(authservice.AuthHeader)
+    if authToken == "" {
+      return errs.NewError(errs.ErrTypeNotFoundToken, nil)
+    }
+    userId, err := h.manager.Parse(authToken)
     if err != nil {
       return errs.NewError(errs.ErrTypeMalformedToken, &errs.LogMessage{
         Err: err,
@@ -77,13 +77,12 @@ func (h *Handler) MiddlewareAuth(handler errs.HandlerErr) errs.HandlerErr {
     ctx := utils.AddCtxValues(r.Context(), utils.CtxMap{
       ctxKeyUserId{}: userId,
     })
-
     return handler(w, r.WithContext(ctx))
   }
 }
 
 func (h *Handler) HandleSignUp(w http.ResponseWriter, r *http.Request) error {
-  req := &auth_service.SignUpRequest{}
+  req := &authservice.SignUpRequest{}
 
   if err := utils.ReadRequest(r, req); err != nil {
     return err
@@ -99,7 +98,7 @@ func (h *Handler) HandleSignUp(w http.ResponseWriter, r *http.Request) error {
   if err != nil {
     return err
   }
-  if err = utils.WriteResponse(w, &auth_service.SignUpResponse{
+  if err = utils.WriteResponse(w, &authservice.SignUpResponse{
     Success:      true,
     AccessToken:  tokens.Access,
     RefreshToken: tokens.Refresh,
@@ -111,7 +110,7 @@ func (h *Handler) HandleSignUp(w http.ResponseWriter, r *http.Request) error {
 }
 
 func (h *Handler) HandleSignIn(w http.ResponseWriter, r *http.Request) error {
-  req := &auth_service.SingInRequest{}
+  req := &authservice.SignInRequest{}
 
   if err := utils.ReadRequest(r, req); err != nil {
     return err
@@ -126,7 +125,7 @@ func (h *Handler) HandleSignIn(w http.ResponseWriter, r *http.Request) error {
   if err != nil {
     return err
   }
-  if err = utils.WriteResponse(w, &auth_service.SignInResponse{
+  if err = utils.WriteResponse(w, &authservice.SignInResponse{
     Success:      true,
     AccessToken:  tokens.Access,
     RefreshToken: tokens.Refresh,
@@ -138,7 +137,7 @@ func (h *Handler) HandleSignIn(w http.ResponseWriter, r *http.Request) error {
 }
 
 func (h *Handler) HandleRefresh(w http.ResponseWriter, r *http.Request) error {
-  req := &auth_service.RefreshRequest{}
+  req := &authservice.RefreshRequest{}
 
   if err := utils.ReadRequest(r, req); err != nil {
     return err
@@ -150,7 +149,7 @@ func (h *Handler) HandleRefresh(w http.ResponseWriter, r *http.Request) error {
   if err != nil {
     return err
   }
-  if err = utils.WriteResponse(w, &auth_service.RefreshResponse{
+  if err = utils.WriteResponse(w, &authservice.RefreshResponse{
     Success:      true,
     AccessToken:  userTokens.Access,
     RefreshToken: userTokens.Refresh,
@@ -162,7 +161,7 @@ func (h *Handler) HandleRefresh(w http.ResponseWriter, r *http.Request) error {
 }
 
 func (h *Handler) HandleCheck(w http.ResponseWriter, r *http.Request) error {
-  req := &auth_service.CheckUserRequest{}
+  req := &authservice.CheckUserRequest{}
 
   if err := utils.ReadRequest(r, req); err != nil {
     return err
@@ -178,8 +177,9 @@ func (h *Handler) HandleCheck(w http.ResponseWriter, r *http.Request) error {
     return err
   }
 
-  if err := utils.WriteResponse(w, &auth_service.CheckUserResponse{
+  if err := utils.WriteResponse(w, &authservice.CheckUserResponse{
     Success:   true,
+    UserId:    userInfo.UserId,
     Email:     userInfo.Email,
     FullName:  userInfo.FullName,
     CreatedAt: userInfo.CreatedAt,

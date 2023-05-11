@@ -3,6 +3,7 @@ package errs
 import (
   "encoding/json"
   "errors"
+  "fmt"
 
   log "github.com/sirupsen/logrus"
 )
@@ -18,9 +19,10 @@ const (
   ErrTypeBodyNotFound
   ErrTypeMalformedRequest
   ErrTypeNotFoundContent
+  ErrTypeNotFoundToken
   ErrTypeMalformedToken
-  ErrTypeForbidden
   ErrTypeExpiredToken
+  ErrTypeForbidden
   ErrTypeWrongCredentials
 )
 
@@ -30,9 +32,10 @@ const (
   messageBodyNotFound        = "body not found"
   messageInvalidBody         = "malformed request"
   messageNotFoundContent     = "not found content"
+  messageNotFoundToken       = "not found token"
   messageMalformedToken      = "malformed token"
-  messageForbidden           = "forbidden"
   messageExpiredToken        = "expired token"
+  messageForbidden           = "forbidden"
   messageWrongCredentials    = "wrong credentials"
 )
 
@@ -78,6 +81,8 @@ func NewError(errType int, logMessage *LogMessage) *Error {
     err.Message = messageExpiredToken
   case ErrTypeWrongCredentials:
     err.Message = messageWrongCredentials
+  case ErrTypeNotFoundToken:
+    err.Message = messageNotFoundToken
   default:
     err.Message = messageInternalServerError
   }
@@ -114,4 +119,11 @@ func ErrIs(err error, targets ...error) bool {
     }
   }
   return false
+}
+
+func (e *Error) Unmarshal(content []byte) error {
+  if err := json.Unmarshal(content, e); err != nil {
+    return fmt.Errorf("cannot unmarshal error: %v", err)
+  }
+  return nil
 }

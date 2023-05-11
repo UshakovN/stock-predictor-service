@@ -15,32 +15,34 @@ import (
   log "github.com/sirupsen/logrus"
 )
 
-type ApiAuthType int
+type apiAuthType int
 
 const (
-  AuthApiToken  ApiAuthType = 0
-  AuthApiHeader ApiAuthType = 1
+  AuthApiToken  apiAuthType = 0
+  AuthApiHeader apiAuthType = 1
 )
 
 type RequestApiAuth struct {
   Key   string
   Value string
-  Type  ApiAuthType
+  Type  apiAuthType
 }
 
 type RequestOptions struct {
-  Headers Header
-  ApiAuth *RequestApiAuth
+  Headers           Header
+  ApiAuth           *RequestApiAuth
+  NoRetry           bool
+  RetryInternalOnly bool
 }
 
 func (o *RequestOptions) stuffRequest(req *http.Request) error {
   if auth := o.ApiAuth; auth != nil {
+    if auth.Type != AuthApiToken && auth.Type != AuthApiHeader {
+      return fmt.Errorf("unrecognized auth type")
+    }
     token := &apiAuth{
       key:   auth.Key,
       value: auth.Value,
-    }
-    if auth.Type != AuthApiToken && auth.Type != AuthApiHeader {
-      return fmt.Errorf("unrecognized auth type")
     }
     if auth.Type == AuthApiToken {
       token.query = true
@@ -56,9 +58,18 @@ func (o *RequestOptions) stuffRequest(req *http.Request) error {
   return nil
 }
 
+func (o *RequestOptions) noRetry() bool {
+  return o != nil && o.NoRetry
+}
+
+func (o *RequestOptions) retryInternalOnly() bool {
+  return o != nil && o.RetryInternalOnly
+}
+
 type HttpClient interface {
   GetFullResp(requestURL string, options *RequestOptions) (*FullResp, error)
   Get(requestURL string, options *RequestOptions) ([]byte, error)
+  PostFullResp(requestURL string, payload any, options *RequestOptions) (*FullResp, error)
   Post(requestURL string, payload any, options *RequestOptions) ([]byte, error)
   ParseResponse(bytes []byte, resp any) error
 }
@@ -67,7 +78,8 @@ type Client struct {
   ctx     context.Context
   client  http.Client
   limiter *rateLimiter
-  token   *apiAuth
+  apiAuth *apiAuth
+  retries *utils.RetryOption
   prefix  string
 }
 
@@ -108,29 +120,41 @@ func WithContext(ctx context.Context) Options {
   }
 }
 
-func WithApiToken(tokenKey, tokenValue string) Options {
+func withApiToken(tokenKey, tokenValue string) Options {
   return func(c *Client) {
-    c.token = &apiAuth{
+    c.apiAuth = &apiAuth{
       key:   tokenKey,
       value: tokenValue,
-      query: true,
     }
   }
 }
 
-func WithAuthHeader(authHeader, accessToken string) Options {
+func WithQueryApiToken(tokenName, tokenValue string) Options {
   return func(c *Client) {
-    c.token = &apiAuth{
-      key:    authHeader,
-      value:  accessToken,
-      header: true,
-    }
+    withApiToken(tokenName, tokenValue)(c)
+    c.apiAuth.query = true
+  }
+}
+
+func WithHeaderApiToken(tokenName, tokenValue string) Options {
+  return func(c *Client) {
+    withApiToken(tokenName, tokenValue)(c)
+    c.apiAuth.header = true
   }
 }
 
 func WithApiPrefix(prefixURL string) Options {
   return func(c *Client) {
     c.prefix = prefixURL
+  }
+}
+
+func WithCustomRetries(retryCount int, retryWait time.Duration) Options {
+  return func(c *Client) {
+    c.retries = &utils.RetryOption{
+      RetryCount:   retryCount,
+      WaitInterval: retryWait,
+    }
   }
 }
 
@@ -196,16 +220,24 @@ type FullResp struct {
   Code    int
 }
 
-func (c *Client) GetFullResp(requestURL string, options *RequestOptions) (*FullResp, error) {
+type doRequestOnce func(requestURL string, payload any, options *RequestOptions) (*http.Response, error)
+
+func (c *Client) doRequest(
+  requestURL string,
+  payload any,
+  options *RequestOptions,
+  doOnce doRequestOnce,
+) (*FullResp, error) {
+
   var (
     resp *http.Response
     err  error
   )
-
   err = utils.DoWithRetry(func() error {
-    resp, err = c.getOnce(requestURL, options)
+    resp, err = doOnce(requestURL, payload, options)
     return err
-  })
+  }, c.retries)
+
   if err != nil {
     return nil, NewError(requestURL,
       fmt.Errorf("%s request failed: %v", http.MethodGet, err),
@@ -226,6 +258,10 @@ func (c *Client) GetFullResp(requestURL string, options *RequestOptions) (*FullR
   }, nil
 }
 
+func (c *Client) GetFullResp(requestURL string, options *RequestOptions) (*FullResp, error) {
+  return c.doRequest(requestURL, nil, options, c.getOnce)
+}
+
 func (c *Client) Get(requestURL string, options *RequestOptions) ([]byte, error) {
   fullResp, err := c.GetFullResp(requestURL, options)
   if err != nil {
@@ -234,7 +270,7 @@ func (c *Client) Get(requestURL string, options *RequestOptions) ([]byte, error)
   return fullResp.Content, nil
 }
 
-func (c *Client) getOnce(requestURL string, options *RequestOptions) (*http.Response, error) {
+func (c *Client) getOnce(requestURL string, _ any, options *RequestOptions) (*http.Response, error) {
   if err := c.limiter.Wait(c.ctx); err != nil {
     return nil, fmt.Errorf("limiter wait failed: %v", err)
   }
@@ -243,7 +279,7 @@ func (c *Client) getOnce(requestURL string, options *RequestOptions) (*http.Resp
   if err != nil {
     return nil, err
   }
-  resp, err := c.doRequest(req)
+  resp, err := c.doRequestOnce(req, options)
   if err != nil {
     return nil, err
   }
@@ -284,8 +320,8 @@ func (c *Client) formRequest(method, reqURL string, body io.Reader, options *Req
     return nil, NewError(reqURL, fmt.Errorf("cannot create request: %v", err))
   }
 
-  if c.token != nil {
-    c.token.stuffRequest(req)
+  if c.apiAuth != nil {
+    c.apiAuth.stuffRequest(req)
   }
   if options != nil {
     if err := options.stuffRequest(req); err != nil {
@@ -296,15 +332,16 @@ func (c *Client) formRequest(method, reqURL string, body io.Reader, options *Req
   return req, nil
 }
 
-func (c *Client) doRequest(req *http.Request) (*http.Response, error) {
+func (c *Client) doRequestOnce(req *http.Request, options *RequestOptions) (*http.Response, error) {
   resp, err := c.client.Do(req)
   if err != nil {
     return nil, NewError(req.URL.String(), fmt.Errorf("do request failed: %v", err))
   }
-  statusCode := resp.StatusCode
-
-  if statusCode >= http.StatusBadRequest {
-    return nil, NewError(req.URL.String(), fmt.Errorf("bad response. got status code: %d", statusCode))
+  if options.noRetry() || resp.StatusCode == http.StatusOK {
+    return resp, nil
+  }
+  if resp.StatusCode >= http.StatusInternalServerError || !options.retryInternalOnly() {
+    return nil, NewError(req.URL.String(), fmt.Errorf("error response. got status code: %d", resp.StatusCode))
   }
   return resp, nil
 }
@@ -339,26 +376,16 @@ func preparePostPayload(requestURL string, payload any) (io.Reader, error) {
   return reader, nil
 }
 
+func (c *Client) PostFullResp(requestURL string, payload any, options *RequestOptions) (*FullResp, error) {
+  return c.doRequest(requestURL, payload, options, c.postOnce)
+}
+
 func (c *Client) Post(requestURL string, payload any, options *RequestOptions) ([]byte, error) {
-  var (
-    resp *http.Response
-    err  error
-  )
-
-  err = utils.DoWithRetry(func() error {
-    resp, err = c.postOnce(requestURL, payload, options)
-    return err
-  })
-  if err != nil {
-    return nil, NewError(requestURL, fmt.Errorf("post request failed: %v", err))
-  }
-
-  content, err := readResponse(requestURL, resp)
+  fullResp, err := c.PostFullResp(requestURL, payload, options)
   if err != nil {
     return nil, err
   }
-
-  return content, nil
+  return fullResp.Content, nil
 }
 
 func (c *Client) postOnce(requestURL string, payload any, options *RequestOptions) (*http.Response, error) {
@@ -374,7 +401,7 @@ func (c *Client) postOnce(requestURL string, payload any, options *RequestOption
   if err != nil {
     return nil, err
   }
-  resp, err := c.doRequest(req)
+  resp, err := c.doRequestOnce(req, options)
   if err != nil {
     return nil, err
   }

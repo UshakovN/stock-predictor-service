@@ -6,6 +6,7 @@ import (
   "io"
   "net/http"
   "net/url"
+  "strconv"
 
   "github.com/UshakovN/stock-predictor-service/contract/common"
   "github.com/UshakovN/stock-predictor-service/errs"
@@ -33,13 +34,13 @@ func ReadRequest(r *http.Request, req any) error {
   switch r.Method {
 
   case http.MethodGet:
-    query := plainQuery(r.URL.Query())
+    query := normalizeQuery(r.URL.Query())
     b, err := json.Marshal(query)
     if err != nil {
       return fmt.Errorf("cannot marshal request query: %v", err)
     }
     if err = json.Unmarshal(b, req); err != nil {
-      return fmt.Errorf("cannot unmarshal request query: %v", err)
+      return errs.NewError(errs.ErrTypeMalformedRequest, nil)
     }
     return nil
 
@@ -67,16 +68,29 @@ func ReadRequest(r *http.Request, req any) error {
   }
 }
 
-func plainQuery(query url.Values) map[string]string {
-  plain := make(map[string]string, len(query))
+func normalizeQuery(query url.Values) map[string]any {
+  normalized := make(map[string]any, len(query))
 
   for key, values := range query {
     if len(values) == 0 {
       continue
     }
-    plain[key] = values[0]
+    normalized[key] = castQueryValue(values[0])
   }
-  return plain
+  return normalized
+}
+
+func castQueryValue(value string) any {
+  if value, err := strconv.Atoi(value); err == nil {
+    return value
+  }
+  if value, err := strconv.ParseFloat(value, 64); err == nil {
+    return value
+  }
+  if value, err := strconv.ParseBool(value); err == nil {
+    return value
+  }
+  return value
 }
 
 func WriteResponse(w http.ResponseWriter, resp any, statusCode int) error {

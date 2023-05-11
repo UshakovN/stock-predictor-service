@@ -4,6 +4,7 @@ import (
   "context"
   "fmt"
   "regexp"
+  "sync"
 
   sq "github.com/Masterminds/squirrel"
   "github.com/UshakovN/stock-predictor-service/postgres"
@@ -16,6 +17,7 @@ type Storage interface {
   GetStocks(option *GetOption) ([]*Stock, error)
   UpdateSubscription(sub *Subscription) error
   GetSubscriptions(userId string, filterActive bool) ([]*Subscription, error)
+  GetOptionForTicker(tickerId string) *GetOption
 }
 
 type queryBuilder interface {
@@ -220,7 +222,7 @@ func (s *storage) updateSubscription(tx pgx.Tx, sub *Subscription) error {
 func (s *storage) hasSubscription(tx pgx.Tx, sub *Subscription) (bool, error) {
   builder := postgres.NewSelectBuilder().
     Columns(`COUNT(*)`).
-    From(`subscriptions`).
+    From(`subscription`).
     Where(sq.Eq{
       `user_id`:   sub.UserId,
       `ticker_id`: sub.TickerId,
@@ -231,10 +233,10 @@ func (s *storage) hasSubscription(tx pgx.Tx, sub *Subscription) (bool, error) {
   }
   var subCount int
 
-  if _, err := scanQueriedRow(queriedRows, subCount); err != nil {
+  if _, err := scanFirstQueriedRow(queriedRows, &subCount); err != nil {
     return false, err
   }
-  return subCount == 0, nil
+  return subCount != 0, nil
 }
 
 func (s *storage) GetSubscriptions(userId string, filterActive bool) ([]*Subscription, error) {
@@ -344,6 +346,21 @@ func scanQueriedRow(rows pgx.Rows, fields ...any) (bool, error) {
   return hasRow, nil
 }
 
+func scanFirstQueriedRow(rows pgx.Rows, fields ...any) (bool, error) {
+  var (
+    hasRows bool
+    err     error
+  )
+  once := sync.Once{}
+  for rows.Next() {
+    once.Do(func() {
+      err = rows.Scan(fields...)
+      hasRows = true
+    })
+  }
+  return hasRows, err
+}
+
 var ambiguousColumn = regexp.MustCompile(`[^.]ticker_id`)
 
 func unambiguousGetTickersQuery(query string) string {
@@ -351,4 +368,21 @@ func unambiguousGetTickersQuery(query string) string {
   query = ambiguousColumn.ReplaceAllLiteralString(query, unambiguous)
   query = sanitizeQuery(query)
   return query
+}
+
+func (s *storage) GetOptionForTicker(tickerId string) *GetOption {
+  const (
+    tickerIdField = "ticker_id"
+  )
+  return &GetOption{
+    Filters: FiltersOption{
+      {
+        Border: &BorderFilter{
+          Field:   tickerIdField,
+          Value:   tickerId,
+          Compare: EqTokenizer{},
+        },
+      },
+    },
+  }
 }

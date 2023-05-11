@@ -37,3 +37,6 @@ type Subscription struct {
   CreatedAt      time.Time `json:"created_at"`
   ModifiedAt     time.Time `json:"modified_at"`
 }
+
+type Predict struct {
+}

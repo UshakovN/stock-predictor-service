@@ -40,10 +40,30 @@ type Stock struct {
 }
 
 type Subscription struct {
-  SubscriptionId string    `json:"subscription_id"`
+  SubscriptionId string    `json:"subscription_id"` // TODO: remove this field
   UserId         string    `json:"user_id"`
   TickerId       string    `json:"ticker_id"`
   Active         bool      `json:"active"`
   CreatedAt      time.Time `json:"created_at"`
   ModifiedAt     time.Time `json:"modified_at"`
+}
+
+// TODO: use this structs
+
+type StockPredicts struct {
+  Found             bool      `json:"found"`
+  TickerId          string    `json:"ticker_id"`
+  DatePredict       time.Time `json:"date_predict"`
+  PredictedMovement string    `json:"predicted_movement"`
+  CreatedAt         time.Time `json:"created_at"`
+}
+
+type ModelInfo struct {
+  Accuracy  float64   `json:"accuracy"`
+  CreatedAt time.Time `json:"created_at"`
+}
+
+type StocksPredicts struct {
+  ModelInfo *ModelInfo       `json:"model_info"`
+  Parts     []*StockPredicts `json:"parts"`
 }

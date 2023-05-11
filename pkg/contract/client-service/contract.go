@@ -1,6 +1,7 @@
-package client_service
+package clientservice
 
 import (
+  "fmt"
   "time"
 
   "github.com/UshakovN/stock-predictor-service/errs"
@@ -35,6 +36,7 @@ type Sort struct {
 type Filter struct {
   Border  *BorderFilter  `json:"border,omitempty"`
   Between *BetweenFilter `json:"between,omitempty"`
+  List    *ListFilter    `json:"list,omitempty"`
 }
 
 type BorderFilter struct {
@@ -47,6 +49,11 @@ type BetweenFilter struct {
   Field       string `json:"field"`
   LeftBorder  any    `json:"left_border"`
   RightBorder any    `json:"right_border"`
+}
+
+type ListFilter struct {
+  Field  string `json:"field"`
+  Values []any  `json:"values"`
 }
 
 type WithFields struct {
@@ -119,6 +126,28 @@ type UnsubscribeResponse struct {
   Success bool `json:"success"`
 }
 
+func (r *ResourceRequest) Validate() error {
+  const (
+    maxCountPerPage = 1000
+  )
+  if r.Pagination == nil {
+    return nil
+  }
+  if r.Pagination.Count <= 0 {
+    return errs.NewErrorWithMessage(errs.ErrTypeMalformedRequest,
+      "pagination count must be positive", nil)
+  }
+  if r.Pagination.Count > maxCountPerPage {
+    return errs.NewErrorWithMessage(errs.ErrTypeMalformedRequest,
+      fmt.Sprintf("pagination count must be lower than %d", maxCountPerPage), nil)
+  }
+  if r.Pagination.Page <= 0 {
+    return errs.NewErrorWithMessage(errs.ErrTypeMalformedRequest,
+      "pagination page must be positive", nil)
+  }
+  return nil
+}
+
 func (r *SubscribeRequest) Validate() error {
   if r.TickerId == "" {
     return errs.NewErrorWithMessage(errs.ErrTypeMalformedRequest,
@@ -135,7 +164,9 @@ func (r *UnsubscribeRequest) Validate() error {
   return nil
 }
 
-type SubscriptionsRequest struct{}
+type SubscriptionsRequest struct {
+  FilterActive bool `json:"filter_active"`
+}
 
 type Subscription struct {
   SubscriptionId string    `json:"subscription_id"`
@@ -148,4 +179,16 @@ type Subscription struct {
 type SubscriptionsResponse struct {
   Success bool            `json:"success"`
   Parts   []*Subscription `json:"parts"`
+}
+
+type PredictsRequest struct {
+  TickerId  string      `json:"ticker_id"`
+  Predict   interface{} `json:"predict"` // TODO: need to clarify
+  Precision float64     `json:"precision"`
+}
+
+type PredictResponse struct {
+  TickerId  string      `json:"ticker_id"`
+  Predict   interface{} `json:"predict"` // TODO: need to clarify
+  Precision float64     `json:"precision"`
 }

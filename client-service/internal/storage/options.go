@@ -10,11 +10,10 @@ import (
 )
 
 var (
-  ErrMalformedPagination  = errors.New("malformed pagination option")
-  ErrMalformedSort        = errors.New("malformed sort option")
-  ErrMalformedFilter      = errors.New("malformed filter option")
-  ErrFiltersHasDuplicates = errors.New("filters has duplicates")
-  ErrOnlyOneFilterType    = errors.New("only one filter type must be specified")
+  ErrMalformedPagination      = errors.New("malformed pagination option")
+  ErrMalformedSort            = errors.New("malformed sort option")
+  ErrMalformedFilter          = errors.New("malformed filter option")
+  ErrMustContainOneFilterType = errors.New("filter part must contain one filter type")
 )
 
 var (
@@ -111,19 +110,43 @@ func (f FiltersOption) Stuff(query string) (string, error) {
 type FilterPart struct {
   Border  *BorderFilter
   Between *BetweenFilter
+  List    *ListFilter
+}
+
+func (f *FilterPart) count() int {
+  var count int
+
+  if f.Border != nil {
+    count++
+  }
+  if f.Between != nil {
+    count++
+  }
+  if f.List != nil {
+    count++
+  }
+  return count
 }
 
 func (f *FilterPart) stuff(query string) (string, error) {
-  if f.Border != nil && f.Between != nil {
-    return "", ErrOnlyOneFilterType
+  const requiredCount = 1
+
+  if f.count() > requiredCount {
+    return "", ErrMustContainOneFilterType
   }
+  var err error
+
   if f.Border != nil {
-    return f.Border.stuff(query)
-  }
+    query, err = f.Border.stuff(query)
+  } else
   if f.Between != nil {
-    return f.Between.stuff(query)
+    query, err = f.Between.stuff(query)
+  } else
+  if f.List != nil {
+    query, err = f.List.stuff(query)
   }
-  return query, nil
+
+  return query, err
 }
 
 type BorderFilter struct {
@@ -136,6 +159,11 @@ type BetweenFilter struct {
   Field       string
   LeftBorder  any
   RightBorder any
+}
+
+type ListFilter struct {
+  Field  string
+  Values []any
 }
 
 func (f *BorderFilter) stuff(query string) (string, error) {
@@ -160,6 +188,28 @@ func (f *BetweenFilter) stuff(query string) (string, error) {
     sanitizeField(f.Field),
     quoteValue(f.LeftBorder),
     quoteValue(f.RightBorder))
+
+  return query, nil
+}
+
+func (f *ListFilter) stuff(query string) (string, error) {
+  if f.Field == "" || len(f.Values) == 0 {
+    return "", ErrMalformedFilter
+  }
+  values := make([]string, 0, len(f.Values))
+
+  for _, value := range f.Values {
+    values = append(values, quoteValue(value))
+  }
+  const (
+    commaSep = ","
+  )
+  listValues := strings.Join(values, commaSep)
+
+  query = fmt.Sprintf("%s {where} %s in (%s)",
+    sanitizeQuery(query),
+    sanitizeField(f.Field),
+    listValues)
 
   return query, nil
 }

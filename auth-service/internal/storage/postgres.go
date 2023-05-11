@@ -2,7 +2,6 @@ package storage
 
 import (
   "context"
-  "errors"
   "fmt"
   "sync"
   "time"
@@ -223,14 +222,6 @@ func (s *storage) doQuery(tx pgx.Tx, builder queryBuilder, fields ...any) (bool,
     return false, fmt.Errorf("cannot do query: %v", err)
   }
   return scanFirstQueriedRow(rows, fields)
-}
-
-func (s *storage) rollbackTxIfNotClosed(tx pgx.Tx) {
-  if err := tx.Rollback(s.ctx); err != nil {
-    if !errors.Is(err, pgx.ErrTxClosed) {
-      log.Errorf("cannot rollback transaction: %v", err)
-    }
-  }
 }
 
 func mustBuildQuery(builder queryBuilder) (string, []any) {

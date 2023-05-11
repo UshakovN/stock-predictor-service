@@ -8,10 +8,11 @@ import (
   "main/internal/storage"
   "net/http"
 
-  "github.com/UshakovN/stock-predictor-service/contract/client-service"
+  authservice "github.com/UshakovN/stock-predictor-service/contract/auth-service"
+  clientservice "github.com/UshakovN/stock-predictor-service/contract/client-service"
   "github.com/UshakovN/stock-predictor-service/contract/common"
+  mediaservice "github.com/UshakovN/stock-predictor-service/contract/media-service"
   "github.com/UshakovN/stock-predictor-service/errs"
-  "github.com/UshakovN/stock-predictor-service/httpclient"
   "github.com/UshakovN/stock-predictor-service/utils"
   log "github.com/sirupsen/logrus"
 )
@@ -19,41 +20,46 @@ import (
 type Handler struct {
   ctx     context.Context
   service service.ClientService
+  auth    authservice.Client
 }
 
 func (h *Handler) BindRouter() {
-  http.Handle("/tickers", errs.MiddlewareErr(h.HandleTickers))
-  http.Handle("/stocks", errs.MiddlewareErr(h.HandleStocks))
-  http.Handle("/subscriptions", nil)
-  http.Handle("/subscribe", errs.MiddlewareErr(h.HandleSubscribe))
-  http.Handle("/unsubscribe", errs.MiddlewareErr(h.HandleUnsubscribe))
+  http.Handle("/tickers", errs.MiddlewareErr(h.auth.AuthMiddleware(h.HandleTickers)))
+  http.Handle("/stocks", errs.MiddlewareErr(h.auth.AuthMiddleware(h.HandleStocks)))
+  http.Handle("/subscriptions", errs.MiddlewareErr(h.auth.AuthMiddleware(h.HandleSubscriptions)))
+  http.Handle("/subscribe", errs.MiddlewareErr(h.auth.AuthMiddleware(h.HandleSubscribe)))
+  http.Handle("/unsubscribe", errs.MiddlewareErr(h.auth.AuthMiddleware(h.HandleUnsubscribe)))
+  //http.Handle("/predicts", nil) // TODO: implement /predicts handler
   http.Handle("/health", errs.MiddlewareErr(h.HandleHealth))
 }
 
 func NewHandler(ctx context.Context, config *Config) (*Handler, error) {
   newStorage, err := storage.NewStorage(ctx, config.StorageConfig)
   if err != nil {
-    return nil, fmt.Errorf("cannot create exchange storage: %v", err)
+    return nil, fmt.Errorf("cannot create new storage: %v", err)
   }
-  apiClient := httpclient.NewClient(
-    httpclient.WithContext(ctx),
-    httpclient.WithApiPrefix(config.MediaServicePrefix),
-  )
-  clientService := service.NewClientService(ctx, &service.Config{
-    Storage:   newStorage,
-    ApiClient: apiClient,
+  mediaClient := mediaservice.NewClient(ctx, config.MediaServicePrefix, config.MediaServiceApiToken)
+
+  newService := service.NewClientService(ctx, &service.Config{
+    Storage:     newStorage,
+    MediaClient: mediaClient,
   })
+  authClient := authservice.NewClient(ctx, config.AuthServicePrefix, config.ClientServiceApiToken)
 
   return &Handler{
     ctx:     ctx,
-    service: clientService,
+    service: newService,
+    auth:    authClient,
   }, nil
 }
 
 func (h *Handler) HandleTickers(w http.ResponseWriter, r *http.Request) error {
-  req := &client_service.TickersRequest{}
+  req := &clientservice.TickersRequest{}
 
   if err := utils.ReadRequest(r, req); err != nil {
+    return err
+  }
+  if err := confirmResourceRequest(r, req.ResourceRequest); err != nil {
     return err
   }
   input := &domain.GetInput{}
@@ -65,12 +71,12 @@ func (h *Handler) HandleTickers(w http.ResponseWriter, r *http.Request) error {
   if err != nil {
     return err
   }
-  resp := &client_service.TickersResponse{}
+  resp := &clientservice.TickersResponse{}
 
   if err := utils.FillFrom(tickers, &resp.Tickers); err != nil {
     return err
   }
-  resp.ResourceResponse = &client_service.ResourceResponse{
+  resp.ResourceResponse = &clientservice.ResourceResponse{
     Success: true,
     Count:   len(resp.Tickers),
   }
@@ -81,9 +87,12 @@ func (h *Handler) HandleTickers(w http.ResponseWriter, r *http.Request) error {
 }
 
 func (h *Handler) HandleStocks(w http.ResponseWriter, r *http.Request) error {
-  req := &client_service.StocksRequest{}
+  req := &clientservice.StocksRequest{}
 
   if err := utils.ReadRequest(r, req); err != nil {
+    return err
+  }
+  if err := confirmResourceRequest(r, req.ResourceRequest); err != nil {
     return err
   }
   input := &domain.GetInput{}
@@ -95,12 +104,12 @@ func (h *Handler) HandleStocks(w http.ResponseWriter, r *http.Request) error {
   if err != nil {
     return err
   }
-  resp := &client_service.StocksResponse{}
+  resp := &clientservice.StocksResponse{}
 
   if err := utils.FillFrom(stocks, &resp.Stocks); err != nil {
     return err
   }
-  resp.ResourceResponse = &client_service.ResourceResponse{
+  resp.ResourceResponse = &clientservice.ResourceResponse{
     Success: true,
     Count:   len(resp.Stocks),
   }
@@ -111,8 +120,11 @@ func (h *Handler) HandleStocks(w http.ResponseWriter, r *http.Request) error {
 }
 
 func (h *Handler) HandleSubscribe(w http.ResponseWriter, r *http.Request) error {
-  req := &client_service.SubscribeRequest{}
-  var err error
+  userId, err := getUserIdFromReqCtx(r)
+  if err != nil {
+    return err
+  }
+  req := &clientservice.SubscribeRequest{}
 
   if err = utils.ReadRequest(r, req); err != nil {
     return err
@@ -120,12 +132,11 @@ func (h *Handler) HandleSubscribe(w http.ResponseWriter, r *http.Request) error 
   if err = req.Validate(); err != nil {
     return err
   }
-  // TODO: get user id from auth
 
-  if err = h.service.Subscribe("", req.TickerId); err != nil {
+  if err = h.service.Subscribe(userId, req.TickerId); err != nil {
     return err
   }
-  if err = utils.WriteResponse(w, &client_service.SubscribeResponse{
+  if err = utils.WriteResponse(w, &clientservice.SubscribeResponse{
     Success: true,
   }, http.StatusOK); err != nil {
     return err
@@ -135,18 +146,53 @@ func (h *Handler) HandleSubscribe(w http.ResponseWriter, r *http.Request) error 
 }
 
 func (h *Handler) HandleUnsubscribe(w http.ResponseWriter, r *http.Request) error {
-  req := &client_service.UnsubscribeRequest{}
-  var err error
+  userId, err := getUserIdFromReqCtx(r)
+  if err != nil {
+    return err
+  }
+  req := &clientservice.UnsubscribeRequest{}
 
+  if err = utils.ReadRequest(r, req); err != nil {
+    return err
+  }
   if err = req.Validate(); err != nil {
     return err
   }
-  if err = h.service.Unsubscribe("", req.TickerId); err != nil {
+  if err = h.service.Unsubscribe(userId, req.TickerId); err != nil {
     return err
   }
-  if err = utils.WriteResponse(w, &client_service.UnsubscribeResponse{
+
+  if err = utils.WriteResponse(w, &clientservice.UnsubscribeResponse{
     Success: true,
   }, http.StatusOK); err != nil {
+    return err
+  }
+
+  return nil
+}
+
+func (h *Handler) HandleSubscriptions(w http.ResponseWriter, r *http.Request) error {
+  userId, err := getUserIdFromReqCtx(r)
+  if err != nil {
+    return err
+  }
+  req := &clientservice.SubscriptionsRequest{}
+
+  if err = utils.ReadRequest(r, req); err != nil {
+    return err
+  }
+  subs, err := h.service.GetSubscriptions(userId, req.FilterActive)
+  if err != nil {
+    return err
+  }
+  resp := &clientservice.SubscriptionsResponse{
+    Success: true,
+  }
+  if err = utils.FillFrom(subs, &resp.Parts); err != nil {
+    return err
+  }
+
+  if err := utils.WriteResponse(w, resp, http.StatusOK); err != nil {
     return err
   }
   return nil
@@ -166,4 +212,41 @@ func (h *Handler) ContinuouslyServeHttp(port string) {
   if err != nil {
     log.Fatalf("listen and serve error: %v", err)
   }
+}
+
+func confirmResourceRequest(r *http.Request, req *clientservice.ResourceRequest) error {
+  serviceAccess, err := getServiceAccessFromReqCtx(r)
+  if err != nil {
+    return fmt.Errorf("cannot get service access from request content: %v", err)
+  }
+  if serviceAccess {
+    return nil
+  }
+  if req == nil {
+    return errs.NewError(errs.ErrTypeMalformedRequest, nil)
+  }
+  if req.Pagination == nil {
+    return errs.NewErrorWithMessage(errs.ErrTypeMalformedRequest,
+      "pagination must be specified", nil)
+  }
+  return nil
+}
+
+func getServiceAccessFromReqCtx(req *http.Request) (bool, error) {
+  serviceAccess, err := utils.GetCtxValue[bool](req.Context(), authservice.CtxKeyServiceAccess{})
+  if err != nil {
+    if errs.ErrIs(err, utils.ErrCtxValueNotFound) {
+      return false, nil
+    }
+    return false, err
+  }
+  return serviceAccess, nil
+}
+
+func getUserIdFromReqCtx(req *http.Request) (string, error) {
+  userId, err := utils.GetCtxValue[string](req.Context(), authservice.CtxKeyUserId{})
+  if err != nil {
+    return "", fmt.Errorf("cannot get user id from request context: %v", err)
+  }
+  return userId, nil
 }

@@ -25,7 +25,7 @@ type userAuthService struct {
   ctx             context.Context
   tokenTtl        time.Duration
   tokenManager    auth.TokenManager
-  passwordManager hash.PasswordManager
+  passwordManager hash.Manager
   storage         storage.Storage
 }
 
@@ -99,6 +99,7 @@ func (s *userAuthService) CheckUser(userId string) (*domain.UserInfo, error) {
     return nil, fmt.Errorf("user with id '%s' not found", userId)
   }
   return &domain.UserInfo{
+    UserId:    serviceUser.UserId,
     Email:     serviceUser.Email,
     FullName:  serviceUser.FullName,
     CreatedAt: serviceUser.CreatedAt,

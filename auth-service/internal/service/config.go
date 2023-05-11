@@ -11,6 +11,6 @@ import (
 type Config struct {
   TokenTtl        time.Duration
   TokenManager    auth.TokenManager
-  PasswordManager hash.PasswordManager
+  PasswordManager hash.Manager
   Storage         storage.Storage
 }

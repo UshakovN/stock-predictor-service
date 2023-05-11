@@ -28,13 +28,7 @@ func NewDefaultOption() *RetryOption {
 }
 
 func (o *RetryOption) TrySet(option *RetryOption) {
-  if option == nil {
-    return
-  }
-  if option.RetryCount <= 0 {
-    return
-  }
-  if option.WaitInterval <= 0*time.Second {
+  if option == nil || option.RetryCount <= 0 || option.WaitInterval <= 0 {
     return
   }
   o.RetryCount = option.RetryCount

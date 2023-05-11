@@ -29,7 +29,7 @@ type Fetcher struct {
 func NewFetcher(ctx context.Context, config *Config) (fetcher.Fetcher, error) {
   client := httpclient.NewClient(
     httpclient.WithContext(ctx),
-    httpclient.WithApiToken(
+    httpclient.WithQueryApiToken(
       apiTokenKey,
       config.ApiToken,
     ),

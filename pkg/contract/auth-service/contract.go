@@ -1,4 +1,4 @@
-package auth_service
+package authservice
 
 import (
   "fmt"
@@ -19,7 +19,7 @@ type SignUpResponse struct {
   RefreshToken string `json:"refresh_token"`
 }
 
-type SingInRequest struct {
+type SignInRequest struct {
   Email    string `json:"email"`
   Password string `json:"password"`
 }
@@ -34,6 +34,7 @@ type CheckUserRequest struct{}
 
 type CheckUserResponse struct {
   Success   bool      `json:"success"`
+  UserId    string    `json:"user_id"`
   Email     string    `json:"email"`
   FullName  string    `json:"full_name"`
   CreatedAt time.Time `json:"created_at"`
@@ -71,7 +72,7 @@ func (r *SignUpRequest) Validate() error {
   return nil
 }
 
-func (r *SingInRequest) Validate() error {
+func (r *SignInRequest) Validate() error {
   if r == nil {
     return fmt.Errorf("sign_up request is a nil")
   }

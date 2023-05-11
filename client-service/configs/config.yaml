@@ -1,4 +1,11 @@
+# api_token sha256 digest from stock-predictor-service
+
+media_service_api_token: 63071cfea6be52aadcd12e4170499a339eb5f481f2fa99b6d265ec335581ef77
+client_service_api_token: 63071cfea6be52aadcd12e4170499a339eb5f481f2fa99b6d265ec335581ef77
+
+auth_service_prefix: http://localhost:8082
 media_service_prefix: http://localhost:8081
+
 
 storage_config:
   host: localhost

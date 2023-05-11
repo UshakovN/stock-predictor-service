@@ -2,7 +2,6 @@ package service
 
 import (
   "context"
-  "crypto/sha256"
   "fmt"
   "main/internal/domain"
   "main/internal/queue"
@@ -10,6 +9,7 @@ import (
   "os"
   "strings"
 
+  "github.com/UshakovN/stock-predictor-service/hash"
   "github.com/UshakovN/stock-predictor-service/utils"
 )
 
@@ -23,16 +23,18 @@ type MediaService interface {
 }
 
 type mediaService struct {
-  ctx     context.Context
-  msQueue queue.MediaServiceQueue
-  storage storage.Storage
+  ctx         context.Context
+  msQueue     queue.MediaServiceQueue
+  storage     storage.Storage
+  hashManager hash.Manager
 }
 
 func NewMediaService(ctx context.Context, config *Config) (MediaService, error) {
   service := &mediaService{
-    ctx:     ctx,
-    msQueue: config.MsQueue,
-    storage: config.Storage,
+    ctx:         ctx,
+    msQueue:     config.MsQueue,
+    storage:     config.Storage,
+    hashManager: config.HashManager,
   }
   err := checkDirForStoredMedia(DirStoredMedia)
   if err != nil {
@@ -42,7 +44,7 @@ func NewMediaService(ctx context.Context, config *Config) (MediaService, error) 
 }
 
 func (m *mediaService) GetMedia(input *domain.GetMediaInput) (*domain.Media, error) {
-  mediaFileId := formMediaFileId(input.Name, input.Section)
+  mediaFileId := m.formMediaFileId(input.Name, input.Section)
 
   storedMedia, found, err := m.storage.GetStoredMedia(mediaFileId)
   if err != nil {
@@ -63,7 +65,7 @@ func (m *mediaService) GetMediaBatch(inputs []*domain.GetMediaInput) ([]*domain.
   mediaFileIds := make([]string, 0, len(inputs))
 
   for _, input := range inputs {
-    fileId := formMediaFileId(input.Name, input.Section)
+    fileId := m.formMediaFileId(input.Name, input.Section)
     mediaFileIds = append(mediaFileIds, fileId)
   }
   storedMedia, err := m.storage.GetStoredMediaBatch(mediaFileIds)
@@ -103,7 +105,7 @@ func (m *mediaService) PutMedia(input *domain.PutMediaInput) error {
 func (m *mediaService) HandleQueueMessages() error {
   return m.msQueue.ConsumeMessages(func(message *domain.PutMessage) error {
 
-    createFileResult, err := createNewMediaFileOrIgnore(
+    createFileResult, err := m.createNewMediaFileOrIgnore(
       message.MetaInfo.Name,
       message.MetaInfo.Section,
       message.MetaInfo.Overwrite,
@@ -137,7 +139,7 @@ type createFileResult struct {
   filePath             string
 }
 
-func createNewMediaFileOrIgnore(
+func (m *mediaService) createNewMediaFileOrIgnore(
   fileName string,
   sectionName string,
   overwrite bool,
@@ -146,7 +148,7 @@ func createNewMediaFileOrIgnore(
   const fileCreateMode = 0644 // user read-write | group read | other read
 
   // get other file name for base security
-  fileId := formMediaFileId(fileName, sectionName)
+  fileId := m.formMediaFileId(fileName, sectionName)
 
   fileExt, err := utils.ExtractFileExtension(fileName)
   if err != nil {
@@ -172,6 +174,21 @@ func createNewMediaFileOrIgnore(
   }, nil
 }
 
+func (m *mediaService) formMediaFileId(fileName, sectionName string) string {
+  sb := strings.Builder{}
+  sb.WriteString(fileName)
+  sb.WriteString(sectionName)
+
+  fileInfo := sb.String()
+  return m.hashManager.Hash(fileInfo)
+}
+
+func formMediaFilePath(fileId, fileExtension string) string {
+  const filePathTemplate = "%s/%s.%s"
+  filePath := fmt.Sprintf(filePathTemplate, DirStoredMedia, fileId, fileExtension)
+  return filePath
+}
+
 func checkDirForStoredMedia(dirPath string) error {
   baseDirStat, err := os.Stat(dirPath)
   if err != nil {
@@ -186,21 +203,4 @@ func checkDirForStoredMedia(dirPath string) error {
     return fmt.Errorf("check stored media path: '%s' is not a directory", baseDirStat)
   }
   return nil
-}
-
-func formMediaFileId(fileName, sectionName string) string {
-  sb := strings.Builder{}
-  sb.WriteString(fileName)
-  sb.WriteString(sectionName)
-
-  fileInfo := []byte(sb.String())
-  hashedFileInfo := fmt.Sprintf("%x", sha256.Sum256(fileInfo))
-
-  return hashedFileInfo
-}
-
-func formMediaFilePath(fileId, fileExtension string) string {
-  const filePathTemplate = "%s/%s.%s"
-  filePath := fmt.Sprintf(filePathTemplate, DirStoredMedia, fileId, fileExtension)
-  return filePath
 }

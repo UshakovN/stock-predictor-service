@@ -6,9 +6,8 @@ import (
   "main/internal/domain"
   "main/internal/storage"
 
-  media_service "github.com/UshakovN/stock-predictor-service/contract/media-service"
+  mediaservice "github.com/UshakovN/stock-predictor-service/contract/media-service"
   "github.com/UshakovN/stock-predictor-service/errs"
-  "github.com/UshakovN/stock-predictor-service/httpclient"
   "github.com/UshakovN/stock-predictor-service/utils"
   log "github.com/sirupsen/logrus"
 )
@@ -18,20 +17,21 @@ type ClientService interface {
   GetStocks(input *domain.GetInput) ([]*domain.Stock, error)
   Subscribe(userId, tickerId string) error
   Unsubscribe(userId, tickerId string) error
-  Subscriptions(userId string, filterActive bool) ([]*domain.Subscription, error)
+  GetSubscriptions(userId string, filterActive bool) ([]*domain.Subscription, error)
+  // TODO: implement GetPredicts method
 }
 
 type service struct {
-  ctx       context.Context
-  storage   storage.Storage
-  apiClient httpclient.HttpClient
+  ctx         context.Context
+  storage     storage.Storage
+  mediaClient mediaservice.Client
 }
 
 func NewClientService(ctx context.Context, config *Config) ClientService {
   return &service{
-    ctx:       ctx,
-    storage:   config.Storage,
-    apiClient: config.ApiClient,
+    ctx:         ctx,
+    storage:     config.Storage,
+    mediaClient: config.MediaClient,
   }
 }
 
@@ -105,8 +105,7 @@ func handleStorageError(err error) error {
     storage.ErrMalformedPagination,
     storage.ErrMalformedFilter,
     storage.ErrMalformedFilter,
-    storage.ErrFiltersHasDuplicates,
-    storage.ErrOnlyOneFilterType,
+    storage.ErrMustContainOneFilterType,
   ) {
     return errs.NewErrorWithMessage(errs.ErrTypeMalformedRequest, err.Error(), nil)
   }
@@ -135,28 +134,22 @@ func (s *service) fillTickersMedia(tickers []*domain.Ticker) error {
   return nil
 }
 
-func (s *service) getTickersMediaBatchResp(tickers []*domain.Ticker) (*media_service.GetBatchResponse, error) {
+func (s *service) getTickersMediaBatchResp(tickers []*domain.Ticker) (*mediaservice.GetBatchResponse, error) {
   req := s.formMediaServiceRequest(tickers)
 
-  content, err := s.apiClient.Post("/get-batch", req, nil)
+  resp, err := s.mediaClient.GetBatch(req)
   if err != nil {
-    return nil, fmt.Errorf("cannot get response from media service: %v", err)
+    return nil, fmt.Errorf("media client cannot get batch: %v", err)
   }
-  resp := &media_service.GetBatchResponse{}
-
-  if err = s.apiClient.ParseResponse(content, resp); err != nil {
-    return nil, fmt.Errorf("cannot parse media service response: %v", err)
-  }
-
   return resp, nil
 }
 
-func (s *service) formMediaServiceRequest(tickers []*domain.Ticker) *media_service.GetBatchRequest {
+func (s *service) formMediaServiceRequest(tickers []*domain.Ticker) *mediaservice.GetBatchRequest {
   const (
     logoNameTemplate  = "%s-logo.svg"
     referencesSection = "polygon_references"
   )
-  parts := make([]*media_service.GetRequest, 0, len(tickers))
+  parts := make([]*mediaservice.GetRequest, 0, len(tickers))
 
   for _, ticker := range tickers {
     if ticker.Fields == nil {
@@ -165,17 +158,20 @@ func (s *service) formMediaServiceRequest(tickers []*domain.Ticker) *media_servi
     tickerId := ticker.Fields.TickerId
     logoName := fmt.Sprintf(logoNameTemplate, tickerId)
 
-    parts = append(parts, &media_service.GetRequest{
+    parts = append(parts, &mediaservice.GetRequest{
       Name:    logoName,
       Section: referencesSection,
     })
   }
-  return &media_service.GetBatchRequest{
+  return &mediaservice.GetBatchRequest{
     Parts: parts,
   }
 }
 
 func (s *service) Subscribe(userId string, tickerId string) error {
+  if err := s.mustFoundTicker(tickerId); err != nil {
+    return err
+  }
   subId, err := utils.NewUUID()
   if err != nil {
     return fmt.Errorf("cannot create subscription id: %v", err)
@@ -196,6 +192,9 @@ func (s *service) Subscribe(userId string, tickerId string) error {
 }
 
 func (s *service) Unsubscribe(userId, tickerId string) error {
+  if err := s.mustFoundTicker(tickerId); err != nil {
+    return err
+  }
   if err := s.storage.UpdateSubscription(&storage.Subscription{
     UserId:     userId,
     TickerId:   tickerId,
@@ -207,7 +206,7 @@ func (s *service) Unsubscribe(userId, tickerId string) error {
   return nil
 }
 
-func (s *service) Subscriptions(userId string, filterActive bool) ([]*domain.Subscription, error) {
+func (s *service) GetSubscriptions(userId string, filterActive bool) ([]*domain.Subscription, error) {
   stored, err := s.storage.GetSubscriptions(userId, filterActive)
   if err != nil {
     return nil, fmt.Errorf("cannot get storage subscriptions: %v", err)
@@ -218,6 +217,17 @@ func (s *service) Subscriptions(userId string, filterActive bool) ([]*domain.Sub
     subs = append(subs, formSubscription(stored))
   }
   return subs, nil
+}
+
+func (s *service) mustFoundTicker(tickerId string) error {
+  tickers, err := s.storage.GetTickers(s.storage.GetOptionForTicker(tickerId))
+  if err != nil {
+    return fmt.Errorf("cannot get tickers from storage: %v", err)
+  }
+  if len(tickers) == 0 {
+    return errs.NewError(errs.ErrTypeNotFoundContent, nil)
+  }
+  return nil
 }
 
 func formSubscription(stored *storage.Subscription) *domain.Subscription {

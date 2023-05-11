@@ -5,25 +5,26 @@ import (
 )
 
 type GetInput struct {
-  Pagination *Pagination `json:"pagination"`
-  Sort       *Sort       `json:"sort"`
-  Filters    []*Filter   `json:"filters"`
-  With       *WithFields `json:"with"`
+  Pagination *PaginationInput `json:"pagination"`
+  Sort       *SortInput       `json:"sort"`
+  Filters    []*FilterInput   `json:"filters"`
+  With       *WithFields      `json:"with"`
 }
 
-type Pagination struct {
+type PaginationInput struct {
   Page  int `json:"page"`
   Count int `json:"count"`
 }
 
-type Sort struct {
+type SortInput struct {
   Field string `json:"field"`
   Order string `json:"order"`
 }
 
-type Filter struct {
+type FilterInput struct {
   Border  *BorderFilter  `json:"border"`
   Between *BetweenFilter `json:"between"`
+  List    *ListFilter    `json:"list"`
 }
 
 type BorderFilter struct {
@@ -38,11 +39,16 @@ type BetweenFilter struct {
   RightBorder any    `json:"right_border"`
 }
 
+type ListFilter struct {
+  Field  string `json:"field"`
+  Values []any  `json:"values"`
+}
+
 type WithFields struct {
   Media bool `json:"media"`
 }
 
-func (p *Pagination) Option() *storage.PaginationOption {
+func (p *PaginationInput) Option() *storage.PaginationOption {
   if p == nil {
     return nil
   }
@@ -52,7 +58,7 @@ func (p *Pagination) Option() *storage.PaginationOption {
   }
 }
 
-func (s *Sort) Option() *storage.SortOption {
+func (s *SortInput) Option() *storage.SortOption {
   if s == nil {
     return nil
   }
@@ -99,6 +105,16 @@ func (f *BetweenFilter) Option() *storage.BetweenFilter {
   }
 }
 
+func (f *ListFilter) Option() *storage.ListFilter {
+  if f == nil {
+    return nil
+  }
+  return &storage.ListFilter{
+    Field:  f.Field,
+    Values: f.Values,
+  }
+}
+
 func (g *GetInput) ParseOption() *storage.GetOption {
   filters := make([]*storage.FilterPart, 0, len(g.Filters))
 
@@ -106,6 +122,7 @@ func (g *GetInput) ParseOption() *storage.GetOption {
     filters = append(filters, &storage.FilterPart{
       Border:  filter.Border.Option(),
       Between: filter.Between.Option(),
+      List:    filter.List.Option(),
     })
   }
   return &storage.GetOption{
