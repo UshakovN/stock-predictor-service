@@ -18,7 +18,7 @@ type ClientService interface {
   Subscribe(userId, tickerId string) error
   Unsubscribe(userId, tickerId string) error
   GetSubscriptions(userId string, filterActive bool) ([]*domain.Subscription, error)
-  // TODO: implement GetPredicts method
+  GetStocksPredicts(userId string) (*domain.StocksPredicts, error)
 }
 
 type service struct {
@@ -219,6 +219,19 @@ func (s *service) GetSubscriptions(userId string, filterActive bool) ([]*domain.
   return subs, nil
 }
 
+func (s *service) GetStocksPredicts(userId string) (*domain.StocksPredicts, error) {
+  stored, err := s.storage.GetStocksPredicts(userId, utils.NowDateUTC())
+  if err != nil {
+    if errs.ErrIs(err, storage.ErrNotFoundInStorage) {
+      return nil, errs.NewError(errs.ErrTypeNotFoundContent, nil)
+    }
+    return nil, fmt.Errorf("cannot get stocks predicts: %v", err)
+  }
+  stocksPredicts := formStockPredictions(stored)
+
+  return stocksPredicts, nil
+}
+
 func (s *service) mustFoundTicker(tickerId string) error {
   tickers, err := s.storage.GetTickers(s.storage.GetOptionForTicker(tickerId))
   if err != nil {
@@ -232,11 +245,31 @@ func (s *service) mustFoundTicker(tickerId string) error {
 
 func formSubscription(stored *storage.Subscription) *domain.Subscription {
   return &domain.Subscription{
-    SubscriptionId: stored.SubscriptionId,
-    UserId:         stored.UserId,
-    TickerId:       stored.TickerId,
-    Active:         stored.Active,
-    CreatedAt:      stored.CreatedAt,
-    ModifiedAt:     stored.ModifiedAt,
+    TickerId:   stored.TickerId,
+    Active:     stored.Active,
+    CreatedAt:  stored.CreatedAt,
+    ModifiedAt: stored.ModifiedAt,
   }
+}
+
+func formStockPredictions(stored *storage.StocksPredicts) *domain.StocksPredicts {
+  parts := make([]*domain.Predict, 0, len(stored.Parts))
+
+  for _, part := range stored.Parts {
+    parts = append(parts, &domain.Predict{
+      TickerId:          part.TickerId,
+      DatePredict:       part.DatePredict,
+      PredictedMovement: part.PredictedMovement,
+      CreatedAt:         part.CreatedAt,
+    })
+  }
+  modelInfo := &domain.ModelInfo{
+    Accuracy:  stored.ModelInfo.Accuracy,
+    CreatedAt: stored.ModelInfo.CreatedAt,
+  }
+  return &domain.StocksPredicts{
+    ModelInfo: modelInfo,
+    Parts:     parts,
+  }
+
 }

@@ -5,6 +5,13 @@ import (
   "time"
 )
 
+func NowDateUTC() time.Time {
+  format := "2006-01-02"
+  str := time.Now().UTC().Format(format)
+  date, _ := time.Parse(format, str)
+  return date
+}
+
 func NotTimeUTC() time.Time {
   return time.Now().UTC()
 }

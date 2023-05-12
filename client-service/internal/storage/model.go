@@ -39,4 +39,22 @@ type Subscription struct {
 }
 
 type Predict struct {
+  PredictId         string    `json:"predict_id"`
+  TickerId          string    `json:"ticker_id"`
+  ModelId           string    `json:"model_id"`
+  DatePredict       time.Time `json:"date_predict"`
+  PredictedMovement string    `json:"predicted_movement"`
+  CreatedAt         time.Time `json:"created_at"`
+}
+
+type ModelInfo struct {
+  ModelId   string    `json:"model_id"`
+  Current   bool      `json:"current"`
+  Accuracy  float64   `json:"accuracy"`
+  CreatedAt time.Time `json:"created_at"`
+}
+
+type StocksPredicts struct {
+  ModelInfo *ModelInfo `json:"model_info"`
+  Parts     []*Predict `json:"parts"`
 }

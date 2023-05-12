@@ -2,9 +2,11 @@ package storage
 
 import (
   "context"
+  "errors"
   "fmt"
   "regexp"
   "sync"
+  "time"
 
   sq "github.com/Masterminds/squirrel"
   "github.com/UshakovN/stock-predictor-service/postgres"
@@ -12,11 +14,14 @@ import (
   log "github.com/sirupsen/logrus"
 )
 
+var ErrNotFoundInStorage = errors.New("not found in storage")
+
 type Storage interface {
   GetTickers(option *GetOption) ([]*Ticker, error)
   GetStocks(option *GetOption) ([]*Stock, error)
   UpdateSubscription(sub *Subscription) error
   GetSubscriptions(userId string, filterActive bool) ([]*Subscription, error)
+  GetStocksPredicts(userId string, datePredict time.Time) (*StocksPredicts, error)
   GetOptionForTicker(tickerId string) *GetOption
 }
 
@@ -70,7 +75,7 @@ func (s *storage) GetTickers(option *GetOption) ([]*Ticker, error) {
 
   rows, err := s.doRawQuery(query)
   if err != nil {
-    return nil, fmt.Errorf("cannot do query: %v", err)
+    return nil, err
   }
   var tickers []*Ticker
 
@@ -126,7 +131,7 @@ func (s *storage) GetStocks(options *GetOption) ([]*Stock, error) {
   }
   rows, err := s.doRawQuery(query)
   if err != nil {
-    return nil, fmt.Errorf("cannot do query: %v", err)
+    return nil, err
   }
   var stocks []*Stock
 
@@ -284,6 +289,106 @@ func (s *storage) GetSubscriptions(userId string, filterActive bool) ([]*Subscri
     subs = append(subs, sub)
   }
   return subs, nil
+}
+
+func (s *storage) GetStocksPredicts(userId string, datePredict time.Time) (*StocksPredicts, error) {
+  predicts, err := s.getPredicts(userId, datePredict)
+  if err != nil {
+    return nil, fmt.Errorf("cannot get predicts: %v", err)
+  }
+  if len(predicts) == 0 {
+    return nil, ErrNotFoundInStorage
+  }
+  firstPredictIdx := 0
+  modelId := predicts[firstPredictIdx].ModelId
+
+  modelInfo, err := s.getModelInfo(modelId)
+  if err != nil {
+    return nil, fmt.Errorf("cannot get model info: %v", err)
+  }
+  return &StocksPredicts{
+    ModelInfo: modelInfo,
+    Parts:     predicts,
+  }, nil
+}
+
+func (s *storage) getPredicts(userId string, datePredict time.Time) ([]*Predict, error) {
+  query := sanitizeQuery(
+    `select 
+        predict_id,
+        ticker_id,
+        date_predict,
+        predicted_movement,
+        created_at,
+    from stock_predict 
+        inner join subscription on ticker_id = subscription.ticker_id
+    where 
+        subscription.user_id = $1 and date_predict = $2
+    `)
+
+  queriedRows, err := s.doRawQuery(query, userId, datePredict)
+  if err != nil {
+    return nil, err
+  }
+  var predicts []*Predict
+  modelIds := map[string]struct{}{}
+
+  for {
+    predict := &Predict{}
+    found, err := scanQueriedRow(queriedRows,
+      predict.PredictId,
+      predict.TickerId,
+      predict.ModelId,
+      predict.DatePredict,
+      predict.PredictedMovement,
+      predict.CreatedAt,
+    )
+    if err != nil {
+      return nil, err
+    }
+    if !found {
+      break
+    }
+    modelIds[predict.ModelId] = struct{}{}
+    predicts = append(predicts, predict)
+  }
+  const requiredModelIdsCount = 1
+
+  if len(modelIds) > requiredModelIdsCount {
+    return nil, fmt.Errorf("predicts has different models")
+  }
+  return predicts, nil
+}
+
+func (s *storage) getModelInfo(modelId string) (*ModelInfo, error) {
+  builder := postgres.NewSelectBuilder().
+    Columns(
+      `model_id`,
+      `current`,
+      `accuracy`,
+      `created_at`,
+    ).
+    From(`model_info`)
+
+  queriedRows, err := s.doQuery(nil, builder)
+  if err != nil {
+    return nil, err
+  }
+  modelInfo := &ModelInfo{}
+
+  found, err := scanFirstQueriedRow(queriedRows,
+    &modelInfo.ModelId,
+    &modelInfo.Current,
+    &modelInfo.Accuracy,
+    &modelInfo.CreatedAt,
+  )
+  if err != nil {
+    return nil, err
+  }
+  if !found {
+    return nil, fmt.Errorf("model info with id '%s' not found in storage", modelId)
+  }
+  return modelInfo, nil
 }
 
 func (s *storage) doRawQuery(query string, args ...any) (pgx.Rows, error) {

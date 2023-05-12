@@ -169,11 +169,10 @@ type SubscriptionsRequest struct {
 }
 
 type Subscription struct {
-  SubscriptionId string    `json:"subscription_id"`
-  TickerId       string    `json:"ticker_id"`
-  Active         bool      `json:"active"`
-  CreatedAt      time.Time `json:"created_at"`
-  ModifiedAt     time.Time `json:"modified_at"`
+  TickerId   string    `json:"ticker_id"`
+  Active     bool      `json:"active"`
+  CreatedAt  time.Time `json:"created_at"`
+  ModifiedAt time.Time `json:"modified_at"`
 }
 
 type SubscriptionsResponse struct {
@@ -181,14 +180,22 @@ type SubscriptionsResponse struct {
   Parts   []*Subscription `json:"parts"`
 }
 
-type PredictsRequest struct {
-  TickerId  string      `json:"ticker_id"`
-  Predict   interface{} `json:"predict"` // TODO: need to clarify
-  Precision float64     `json:"precision"`
+type Predict struct {
+  TickerId          string    `json:"ticker_id"`
+  DatePredict       time.Time `json:"date_predict,omitempty"`
+  PredictedMovement string    `json:"predicted_movement,omitempty"`
+  CreatedAt         time.Time `json:"created_at,omitempty"`
 }
 
-type PredictResponse struct {
-  TickerId  string      `json:"ticker_id"`
-  Predict   interface{} `json:"predict"` // TODO: need to clarify
-  Precision float64     `json:"precision"`
+type ModelInfo struct {
+  Accuracy  float64   `json:"accuracy"`
+  CreatedAt time.Time `json:"created_at"`
+}
+
+type PredictsRequest struct{}
+
+type PredictsResponse struct {
+  Success   bool       `json:"success"`
+  ModelInfo *ModelInfo `json:"model_info"`
+  Parts     []*Predict `json:"parts"`
 }

@@ -29,7 +29,7 @@ func (h *Handler) BindRouter() {
   http.Handle("/subscriptions", errs.MiddlewareErr(h.auth.AuthMiddleware(h.HandleSubscriptions)))
   http.Handle("/subscribe", errs.MiddlewareErr(h.auth.AuthMiddleware(h.HandleSubscribe)))
   http.Handle("/unsubscribe", errs.MiddlewareErr(h.auth.AuthMiddleware(h.HandleUnsubscribe)))
-  //http.Handle("/predicts", nil) // TODO: implement /predicts handler
+  http.Handle("/predicts", errs.MiddlewareErr(h.auth.AuthMiddleware(h.HandlePredicts)))
   http.Handle("/health", errs.MiddlewareErr(h.HandleHealth))
 }
 
@@ -193,6 +193,32 @@ func (h *Handler) HandleSubscriptions(w http.ResponseWriter, r *http.Request) er
   }
 
   if err := utils.WriteResponse(w, resp, http.StatusOK); err != nil {
+    return err
+  }
+  return nil
+}
+
+func (h *Handler) HandlePredicts(w http.ResponseWriter, r *http.Request) error {
+  userId, err := getUserIdFromReqCtx(r)
+  if err != nil {
+    return err
+  }
+  req := &clientservice.PredictsRequest{}
+
+  if err = utils.ReadRequest(r, req); err != nil {
+    return err
+  }
+  stocksPredicts, err := h.service.GetStocksPredicts(userId)
+  if err != nil {
+    return err
+  }
+  resp := &clientservice.PredictsResponse{
+    Success: true,
+  }
+  if err = utils.FillFrom(stocksPredicts, resp); err != nil {
+    return err
+  }
+  if err = utils.WriteResponse(w, resp, http.StatusOK); err != nil {
     return err
   }
   return nil
