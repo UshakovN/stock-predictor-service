@@ -161,9 +161,9 @@ func createFetcherState(state *state) *domain.FetcherState {
     return nil
   }
   return &domain.FetcherState{
-    TickerReqUrl:        state.ticker.reqURL,
-    TickerDetailsReqUrl: state.tickerDetails.reqURL,
-    StockReqUrl:         state.stocks.reqURL,
+    TickerReqUrl:        utils.StripString(state.ticker.reqURL),
+    TickerDetailsReqUrl: utils.StripString(state.tickerDetails.reqURL),
+    StockReqUrl:         utils.StripString(state.stocks.reqURL),
     CreatedAt:           utils.NotTimeUTC(),
   }
 }

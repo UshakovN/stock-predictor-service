@@ -65,20 +65,19 @@ func NewFetcher(ctx context.Context, config *Config) (fetcher.Fetcher, error) {
 }
 
 func (f *Fetcher) getTickersResponse(query string) (*tickersResponse, error) {
-  reqURL := getReqUrlFromStateOrNew(f.state.ticker,
-    func() string {
-      return fmt.Sprint(basePrefixApi, tickersApi, "?", query)
-    })
+  reqURL := getReqUrlFromStateOrNew(f.state.ticker, func() string {
+    return fmt.Sprint(basePrefixApi, tickersApi, "?", query)
+  })
 
   resp, err := f.client.Get(reqURL, nil)
   if err != nil {
     return nil, fmt.Errorf("cannot get response: %v", err)
   }
   tickersResp := &tickersResponse{}
+
   if err = f.client.ParseResponse(resp, tickersResp); err != nil {
     return nil, fmt.Errorf("cannot parse response: %v", err)
   }
-
   return tickersResp, nil
 }
 
@@ -113,21 +112,20 @@ func (f *Fetcher) fetchTickerDetails(tickerId string) (*domain.TickerDetails, er
 }
 
 func (f *Fetcher) getTickerDetailsResponse(tickerId string) (*tickerDetailsResponse, error) {
-  reqURL := getReqUrlFromStateOrNew(f.state.tickerDetails,
-    func() string {
-      tickerDetailsQuery := fmt.Sprintf(tickerDetailsApi, tickerId)
-      return fmt.Sprint(basePrefixApi, tickerDetailsQuery)
-    })
+  reqURL := getReqUrlFromStateOrNew(f.state.tickerDetails, func() string {
+    tickerDetailsQuery := fmt.Sprintf(tickerDetailsApi, tickerId)
+    return fmt.Sprint(basePrefixApi, tickerDetailsQuery)
+  })
 
   resp, err := f.client.Get(reqURL, nil)
   if err != nil {
     return nil, fmt.Errorf("cannot get response: %v", err)
   }
   tickerDetailsResp := &tickerDetailsResponse{}
+
   if err = f.client.ParseResponse(resp, tickerDetailsResp); err != nil {
     return nil, fmt.Errorf("cannot parse response: %v", err)
   }
-
   return tickerDetailsResp, nil
 }
 
@@ -147,9 +145,10 @@ func (f *Fetcher) fetchSpecTicker(tickerId string) error {
 
 func (f *Fetcher) fetchTickers() error {
   query := buildTickersQuery()
-  queryStr := query.Encode()
 
   for {
+    queryStr := query.Encode()
+
     tickersResp, err := f.getTickersResponse(queryStr)
     if err != nil {
       return fmt.Errorf("cannot get tickers response: %v", err)
@@ -174,7 +173,6 @@ func (f *Fetcher) fetchTickers() error {
       if err = f.storage.PutTicker(ticker); err != nil {
         return fmt.Errorf("cannot put ticker to storage: %v", err)
       }
-
       if err = f.fetchSpecTicker(ticker.TickerId); err != nil {
         return fmt.Errorf("cannot fetch full ticker info: %v", err)
       }
@@ -184,13 +182,11 @@ func (f *Fetcher) fetchTickers() error {
     if err != nil {
       return fmt.Errorf("cannot parse cursor URL: %s", cursorURL)
     }
-
     cursorValue := cursor.Query().Get(respCursorKey)
     if cursorValue == "" {
       break
     }
-
-    query.Add(respCursorKey, cursorValue)
+    query.Set(respCursorKey, cursorValue)
   }
   return nil
 }
@@ -220,18 +216,17 @@ func buildStocksReqURL(tickerName, fromDate, toDate string) string {
 }
 
 func (f *Fetcher) fetchStocks(tickerId string) error {
-  reqURL := getReqUrlFromStateOrNew(f.state.stocks,
-    func() string {
-      fromDate, toDate := f.getStockDateRange()
-      return buildStocksReqURL(tickerId, fromDate, toDate)
-    })
+  reqURL := getReqUrlFromStateOrNew(f.state.stocks, func() string {
+    fromDate, toDate := f.getStockDateRange()
+    return buildStocksReqURL(tickerId, fromDate, toDate)
+  })
 
   resp, err := f.client.Get(reqURL, nil)
   if err != nil {
     return fmt.Errorf("cannot get response")
   }
-
   stockResp := &stocksResponse{}
+
   if err := f.client.ParseResponse(resp, stockResp); err != nil {
     return fmt.Errorf("cannot parse reponse: %v", err)
   }

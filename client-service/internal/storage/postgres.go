@@ -314,17 +314,17 @@ func (s *storage) GetStocksPredicts(userId string, datePredict time.Time) (*Stoc
 
 func (s *storage) getPredicts(userId string, datePredict time.Time) ([]*Predict, error) {
   query := sanitizeQuery(
-    `select 
+    `select
         predict_id,
-        ticker_id,
+        stock_predict.ticker_id,
+        model_id,
         date_predict,
         predicted_movement,
-        created_at,
-    from stock_predict 
-        inner join subscription on ticker_id = subscription.ticker_id
-    where 
-        subscription.user_id = $1 and date_predict = $2
-    `)
+        created_at
+    from stock_predict
+        inner join subscription on stock_predict.ticker_id = subscription.ticker_id
+    where
+        subscription.user_id = $1 and date_predict = $2`)
 
   queriedRows, err := s.doRawQuery(query, userId, datePredict)
   if err != nil {
@@ -336,12 +336,12 @@ func (s *storage) getPredicts(userId string, datePredict time.Time) ([]*Predict,
   for {
     predict := &Predict{}
     found, err := scanQueriedRow(queriedRows,
-      predict.PredictId,
-      predict.TickerId,
-      predict.ModelId,
-      predict.DatePredict,
-      predict.PredictedMovement,
-      predict.CreatedAt,
+      &predict.PredictId,
+      &predict.TickerId,
+      &predict.ModelId,
+      &predict.DatePredict,
+      &predict.PredictedMovement,
+      &predict.CreatedAt,
     )
     if err != nil {
       return nil, err
@@ -368,7 +368,10 @@ func (s *storage) getModelInfo(modelId string) (*ModelInfo, error) {
       `accuracy`,
       `created_at`,
     ).
-    From(`model_info`)
+    From(`model_info`).
+    Where(sq.Eq{
+      `current`: true,
+    })
 
   queriedRows, err := s.doQuery(nil, builder)
   if err != nil {

@@ -3,6 +3,7 @@ package utils
 import (
   "encoding/json"
   "fmt"
+  "math"
   "strings"
 )
 
@@ -60,4 +61,10 @@ func FillFrom[T, S any](source T, dest S) error {
     return fmt.Errorf("unmarshal failed: %v", err)
   }
   return nil
+}
+
+func RoundFloat(f float64, digits int) float64 {
+  multiplier := math.Pow(10, float64(digits))
+  rounded := math.Round(f*multiplier) / multiplier
+  return rounded
 }

@@ -255,21 +255,37 @@ func formSubscription(stored *storage.Subscription) *domain.Subscription {
 func formStockPredictions(stored *storage.StocksPredicts) *domain.StocksPredicts {
   parts := make([]*domain.Predict, 0, len(stored.Parts))
 
+  const (
+    rise = "rise"
+    fall = "fall"
+  )
+  formMovement := func(predict int) string {
+    if predict == 1 {
+      return rise
+    }
+    if predict == -1 {
+      return fall
+    }
+    return ""
+  }
+
   for _, part := range stored.Parts {
     parts = append(parts, &domain.Predict{
       TickerId:          part.TickerId,
       DatePredict:       part.DatePredict,
-      PredictedMovement: part.PredictedMovement,
+      PredictedMovement: formMovement(part.PredictedMovement),
       CreatedAt:         part.CreatedAt,
     })
   }
+  const roundDigits = 6
+
   modelInfo := &domain.ModelInfo{
-    Accuracy:  stored.ModelInfo.Accuracy,
+    Accuracy:  utils.RoundFloat(stored.ModelInfo.Accuracy, roundDigits),
     CreatedAt: stored.ModelInfo.CreatedAt,
   }
+
   return &domain.StocksPredicts{
     ModelInfo: modelInfo,
     Parts:     parts,
   }
-
 }

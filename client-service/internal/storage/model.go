@@ -43,7 +43,7 @@ type Predict struct {
   TickerId          string    `json:"ticker_id"`
   ModelId           string    `json:"model_id"`
   DatePredict       time.Time `json:"date_predict"`
-  PredictedMovement string    `json:"predicted_movement"`
+  PredictedMovement int       `json:"predicted_movement"`
   CreatedAt         time.Time `json:"created_at"`
 }
 
