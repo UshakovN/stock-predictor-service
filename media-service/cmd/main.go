@@ -13,11 +13,23 @@ import (
   log "github.com/sirupsen/logrus"
 )
 
+// @title Media Service API
+// @version 1.0.0
+// @description API for media content serving service
+//
+// @host localhost:8083
+// @BasePath /
+// @schemes http
+//
+// @securityDefinitions.apikey ApiKeyAuth
+// @in header
+// @name X-Auth-Token
+//
 func main() {
   ctx := context.Background()
 
-  serveHost := flag.String("host", "localhost", "host prefix for serve media content")
-  servePort := flag.String("port", "8080", "serving port")
+  servePort := flag.String("port", "8083", "serving port")
+  serveHost := flag.String("host", "", "host prefix for serve media content")
   configPath := flag.String("path", "", "path to service config file")
   flag.Parse()
 

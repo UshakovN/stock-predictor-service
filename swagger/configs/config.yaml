@@ -2,7 +2,15 @@ swagger_services:
   - name: auth-service
     prefix: http://localhost:8080
   - name: client-service
+    prefix: http://localhost:8081
+  - name: data-fetcher
     prefix: http://localhost:8082
+  - name: media-service
+    prefix: http://localhost:8083
+  - name: search-service
+    prefix: http://localhost:8084
+  - name: ml-service
+    prefix: http://localhost:8085
 
 swagger_config:
   user: swagger

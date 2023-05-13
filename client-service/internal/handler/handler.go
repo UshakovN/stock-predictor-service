@@ -26,10 +26,10 @@ type Handler struct {
 func (h *Handler) BindRouter() {
   http.Handle("/tickers", errs.MiddlewareErr(h.auth.AuthMiddleware(h.HandleTickers)))
   http.Handle("/stocks", errs.MiddlewareErr(h.auth.AuthMiddleware(h.HandleStocks)))
-  http.Handle("/subscriptions", errs.MiddlewareErr(h.auth.AuthMiddleware(h.HandleSubscriptions)))
   http.Handle("/subscribe", errs.MiddlewareErr(h.auth.AuthMiddleware(h.HandleSubscribe)))
   http.Handle("/unsubscribe", errs.MiddlewareErr(h.auth.AuthMiddleware(h.HandleUnsubscribe)))
-  http.Handle("/predicts", errs.MiddlewareErr(h.auth.AuthMiddleware(h.HandlePredicts)))
+  http.Handle("/subscriptions", errs.MiddlewareErr(h.auth.AuthMiddleware(h.HandleSubscriptions)))
+  http.Handle("/predictions", errs.MiddlewareErr(h.auth.AuthMiddleware(h.HandlePredictions)))
   http.Handle("/health", errs.MiddlewareErr(h.HandleHealth))
 }
 
@@ -53,6 +53,18 @@ func NewHandler(ctx context.Context, config *Config) (*Handler, error) {
   }, nil
 }
 
+// HandleTickers
+//
+// @Summary Tickers model method
+// @Description Tickers method provide tickers models for client with pagination, filtration, sorting and media fields
+// @Tags Resources
+// @Produce            application/json
+// @Param request body clientservice.TickersRequest true "Request"
+// @Success 200 {object} clientservice.TickersResponse
+// @Failure 400, 401, 403, 500 {object} errs.Error
+// @Security ApiKeyAuth
+// @Router /tickers [post]
+//
 func (h *Handler) HandleTickers(w http.ResponseWriter, r *http.Request) error {
   req := &clientservice.TickersRequest{}
 
@@ -86,6 +98,18 @@ func (h *Handler) HandleTickers(w http.ResponseWriter, r *http.Request) error {
   return nil
 }
 
+// HandleStocks
+//
+// @Summary Stocks model method
+// @Description Stocks method provide stocks models for client with pagination, filtration, sorting
+// @Tags Resources
+// @Produce            application/json
+// @Param request body clientservice.StocksRequest true "Request"
+// @Success 200 {object} clientservice.StocksResponse
+// @Failure 400, 401, 403, 500 {object} errs.Error
+// @Security ApiKeyAuth
+// @Router /stocks [post]
+//
 func (h *Handler) HandleStocks(w http.ResponseWriter, r *http.Request) error {
   req := &clientservice.StocksRequest{}
 
@@ -119,6 +143,18 @@ func (h *Handler) HandleStocks(w http.ResponseWriter, r *http.Request) error {
   return nil
 }
 
+// HandleSubscribe
+//
+// @Summary Subscribe method subscribe client to the ticker
+// @Description Subscribe method create subscription model for client with specified ticker and store it
+// @Tags Subscriptions
+// @Produce            application/json
+// @Param request body clientservice.SubscribeRequest true "Request"
+// @Success 200 {object} clientservice.SubscribeResponse
+// @Failure 400, 401, 403, 500 {object} errs.Error
+// @Security ApiKeyAuth
+// @Router /subscribe [post]
+//
 func (h *Handler) HandleSubscribe(w http.ResponseWriter, r *http.Request) error {
   userId, err := getUserIdFromReqCtx(r)
   if err != nil {
@@ -145,6 +181,18 @@ func (h *Handler) HandleSubscribe(w http.ResponseWriter, r *http.Request) error 
   return nil
 }
 
+// HandleUnsubscribe
+//
+// @Summary Unsubscribe method unsubscribe client from the ticker
+// @Description Unsubscribe method deactivate subscription model for client on the ticker and update stored model
+// @Tags Subscriptions
+// @Produce            application/json
+// @Param request body clientservice.UnsubscribeRequest true "Request"
+// @Success 200 {object} clientservice.UnsubscribeResponse
+// @Failure 400, 401, 403, 500 {object} errs.Error
+// @Security ApiKeyAuth
+// @Router /unsubscribe [post]
+//
 func (h *Handler) HandleUnsubscribe(w http.ResponseWriter, r *http.Request) error {
   userId, err := getUserIdFromReqCtx(r)
   if err != nil {
@@ -171,6 +219,18 @@ func (h *Handler) HandleUnsubscribe(w http.ResponseWriter, r *http.Request) erro
   return nil
 }
 
+// HandleSubscriptions
+//
+// @Summary Subscriptions model method
+// @Description Subscriptions method provide subscriptions models for client with filtration by active subscriptions
+// @Tags Subscriptions
+// @Produce            application/json
+// @Param request body clientservice.SubscriptionsRequest
+// @Success 200 {object} clientservice.SubscriptionsResponse
+// @Failure 400, 401, 403, 500 {object} errs.Error
+// @Security ApiKeyAuth
+// @Router /subscriptions [get]
+//
 func (h *Handler) HandleSubscriptions(w http.ResponseWriter, r *http.Request) error {
   userId, err := getUserIdFromReqCtx(r)
   if err != nil {
@@ -198,7 +258,18 @@ func (h *Handler) HandleSubscriptions(w http.ResponseWriter, r *http.Request) er
   return nil
 }
 
-func (h *Handler) HandlePredicts(w http.ResponseWriter, r *http.Request) error {
+// HandlePredictions
+//
+// @Summary Predictions model method
+// @Description Predictions method provide stocks price dynamic predictions for client tickers subscriptions
+// @Tags Subscriptions
+// @Produce application/json
+// @Success 200 {object} clientservice.PredictsResponse
+// @Failure 400, 401, 403, 500 {object} errs.Error
+// @Security ApiKeyAuth
+// @Router /predictions [get]
+//
+func (h *Handler) HandlePredictions(w http.ResponseWriter, r *http.Request) error {
   userId, err := getUserIdFromReqCtx(r)
   if err != nil {
     return err
@@ -224,6 +295,16 @@ func (h *Handler) HandlePredicts(w http.ResponseWriter, r *http.Request) error {
   return nil
 }
 
+// HandleHealth
+//
+// @Summary Health check method
+// @Description Health method check http server health
+// @Tags Health
+// @Produce application/json
+// @Success 200 {object} common.HealthResponse
+// @Success 500 {object} errs.Error
+// @Router /health [get]
+//
 func (h *Handler) HandleHealth(w http.ResponseWriter, _ *http.Request) error {
   if err := utils.WriteResponse(w, &common.HealthResponse{
     Success: true,

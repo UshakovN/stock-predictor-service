@@ -94,8 +94,7 @@ func (h *Handler) MiddlewareAuth(handler errs.HandlerErr) errs.HandlerErr {
 // @Produce            application/json
 // @Param request body authservice.SignUpRequest true "Request"
 // @Success 200 {object} authservice.SignUpResponse
-// @Failure 400 {object} errs.Error
-// @Failure 500 {object} errs.Error
+// @Failure 400, 500 {object} errs.Error
 // @Router /sign-up [post]
 //
 func (h *Handler) HandleSignUp(w http.ResponseWriter, r *http.Request) error {
@@ -134,8 +133,7 @@ func (h *Handler) HandleSignUp(w http.ResponseWriter, r *http.Request) error {
 // @Produce            application/json
 // @Param request body authservice.SignInRequest true "Request"
 // @Success 200 {object} authservice.SignInResponse
-// @Failure 400 {object} errs.Error
-// @Failure 500 {object} errs.Error
+// @Failure 400, 500 {object} errs.Error
 // @Router /sign-in [post]
 //
 func (h *Handler) HandleSignIn(w http.ResponseWriter, r *http.Request) error {
@@ -173,10 +171,7 @@ func (h *Handler) HandleSignIn(w http.ResponseWriter, r *http.Request) error {
 // @Produce            application/json
 // @Param request body authservice.RefreshRequest true "Request"
 // @Success 200 {object} authservice.RefreshResponse
-// @Failure 400 {object} errs.Error
-// @Failure 401 {object} errs.Error
-// @Failure 403 {object} errs.Error
-// @Failure 500 {object} errs.Error
+// @Failure 400, 401, 403, 500 {object} errs.Error
 // @Router /refresh [post]
 //
 func (h *Handler) HandleRefresh(w http.ResponseWriter, r *http.Request) error {
@@ -210,10 +205,7 @@ func (h *Handler) HandleRefresh(w http.ResponseWriter, r *http.Request) error {
 // @Tags Authorization
 // @Produce application/json
 // @Success 200 {object} authservice.CheckUserResponse
-// @Failure 400 {object} errs.Error
-// @Failure 401 {object} errs.Error
-// @Failure 403 {object} errs.Error
-// @Failure 500 {object} errs.Error
+// @Failure 400, 401, 403, 500 {object} errs.Error
 // @Security ApiKeyAuth
 // @Router /check [get]
 //
@@ -262,7 +254,6 @@ func (h *Handler) ContinuouslyServeHttp(port string) {
 // @Produce application/json
 // @Success 200 {object} common.HealthResponse
 // @Success 500 {object} errs.Error
-// @Security ApiKeyAuth
 // @Router /health [get]
 //
 func (h *Handler) HandleHealth(w http.ResponseWriter, _ *http.Request) error {

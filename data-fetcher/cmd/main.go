@@ -14,10 +14,18 @@ import (
   log "github.com/sirupsen/logrus"
 )
 
+// @title Data Fetcher API
+// @version 1.0.0
+// @description API for stock market data fetcher
+//
+// @host localhost:8082
+// @BasePath /
+// @schemes http
+//
 func main() {
   ctx := context.Background()
 
-  servePort := flag.String("port", "8080", "serving port")
+  servePort := flag.String("port", "8082", "serving port")
   configPath := flag.String("path", "", "path to service config file")
   tickerId := flag.String("ticker", "", "specified ticker id for fetching")
   flag.Parse()

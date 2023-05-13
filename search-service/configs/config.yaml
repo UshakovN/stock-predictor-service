@@ -3,9 +3,10 @@
 suggest_api_token: 63071cfea6be52aadcd12e4170499a339eb5f481f2fa99b6d265ec335581ef77
 client_service_api_token: 63071cfea6be52aadcd12e4170499a339eb5f481f2fa99b6d265ec335581ef77
 
-client_service_prefix: http://localhost:8084
+auth_service_prefix: http://localhost:8080
+client_service_prefix: http://localhost:8081
+
 elastic_search_prefix: http://localhost:9200
-auth_service_prefix: http://localhost:8082
+elastic_index_name: ticker_index
 
 suggest_update_hours: 1
-elastic_index_name: ticker_index

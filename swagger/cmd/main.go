@@ -12,10 +12,20 @@ import (
   log "github.com/sirupsen/logrus"
 )
 
+// @title Swagger Service API
+// @version 1.0.0
+// @description API for single swagger service
+//
+// @host localhost:8086
+// @BasePath /
+// @schemes http
+//
+// @securityDefinitions.basicAuth HttpBasicAuth
+//
 func main() {
   ctx := context.Background()
 
-  servePort := flag.String("port", "8080", "serving port")
+  servePort := flag.String("port", "8086", "serving port")
   configPath := flag.String("path", "", "path to service config file")
   flag.Parse()
 

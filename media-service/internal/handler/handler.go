@@ -12,14 +12,14 @@ import (
 
   authservice "github.com/UshakovN/stock-predictor-service/contract/auth-service"
   "github.com/UshakovN/stock-predictor-service/contract/common"
-  "github.com/UshakovN/stock-predictor-service/contract/media-service"
+  mediaservice "github.com/UshakovN/stock-predictor-service/contract/media-service"
   "github.com/UshakovN/stock-predictor-service/errs"
   "github.com/UshakovN/stock-predictor-service/hash"
   "github.com/UshakovN/stock-predictor-service/utils"
   log "github.com/sirupsen/logrus"
 )
 
-const fromMediaServiceHttp = "media_service_http"
+const fromMediaServiceHttp = "mediaservice_http"
 
 type Handler struct {
   ctx        context.Context
@@ -70,8 +70,20 @@ func bindFileServer() http.Handler {
   return http.StripPrefix("/stored_media/", fs)
 }
 
+// HandleGet
+//
+// @Summary Get method for stored media
+// @Description Get method provide serving url to single stored media
+// @Tags Media
+// @Produce            application/json
+// @Param request body mediaservice.GetRequest true "Request"
+// @Success 200 {object} mediaservice.GetResponse
+// @Failure 400, 401, 403, 500 {object} errs.Error
+// @Security ApiKeyAuth
+// @Router /get [post]
+//
 func (h *Handler) HandleGet(w http.ResponseWriter, r *http.Request) error {
-  req := &media_service.GetRequest{}
+  req := &mediaservice.GetRequest{}
   if err := utils.ReadRequest(r, req); err != nil {
     return err
   }
@@ -93,8 +105,20 @@ func (h *Handler) HandleGet(w http.ResponseWriter, r *http.Request) error {
   return nil
 }
 
+// HandleGetBatch
+//
+// @Summary GetBatch method for stored media
+// @Description GetBatch method provide serving urls to batch of stored media
+// @Tags Media
+// @Produce            application/json
+// @Param request body mediaservice.GetBatchRequest true "Request"
+// @Success 200 {object} mediaservice.GetBatchResponse
+// @Failure 400, 401, 403, 500 {object} errs.Error
+// @Security ApiKeyAuth
+// @Router /get-batch [post]
+//
 func (h *Handler) HandleGetBatch(w http.ResponseWriter, r *http.Request) error {
-  req := &media_service.GetBatchRequest{}
+  req := &mediaservice.GetBatchRequest{}
   if err := utils.ReadRequest(r, req); err != nil {
     return err
   }
@@ -122,10 +146,22 @@ func (h *Handler) HandleGetBatch(w http.ResponseWriter, r *http.Request) error {
   return nil
 }
 
+// HandlePutQueue
+//
+// @Summary PutQueue method for asynchronous media storing
+// @Description PutQueue method put media in handling queue for asynchronous storing
+// @Tags Media
+// @Produce            application/json
+// @Param request body mediaservice.PutRequest true "Request"
+// @Success 200 {object} mediaservice.PutResponse
+// @Failure 400, 401, 403, 500 {object} errs.Error
+// @Security ApiKeyAuth
+// @Router /put-queue [post]
+//
 func (h *Handler) HandlePutQueue(w http.ResponseWriter, r *http.Request) error {
   const queuedRespField = true
 
-  req := &media_service.PutRequest{}
+  req := &mediaservice.PutRequest{}
   if err := utils.ReadRequest(r, req); err != nil {
     return err
   }
@@ -144,7 +180,7 @@ func (h *Handler) HandlePutQueue(w http.ResponseWriter, r *http.Request) error {
     return err
   }
 
-  if err := utils.WriteResponse(w, &media_service.PutResponse{
+  if err := utils.WriteResponse(w, &mediaservice.PutResponse{
     Queued: queuedRespField,
   }, http.StatusAccepted); err != nil {
     return err
@@ -153,6 +189,16 @@ func (h *Handler) HandlePutQueue(w http.ResponseWriter, r *http.Request) error {
   return nil
 }
 
+// HandleHealth
+//
+// @Summary Health check method
+// @Description Health method check http server health
+// @Tags Health
+// @Produce application/json
+// @Success 200 {object} common.HealthResponse
+// @Success 500 {object} errs.Error
+// @Router /health [get]
+//
 func (h *Handler) HandleHealth(w http.ResponseWriter, _ *http.Request) error {
   if err := utils.WriteResponse(w, &common.HealthResponse{
     Success: true,
@@ -176,13 +222,13 @@ func (h *Handler) ContinuouslyServeQueue() {
   }
 }
 
-func (h *Handler) formGetResponse(media *domain.Media) *media_service.GetResponse {
+func (h *Handler) formGetResponse(media *domain.Media) *mediaservice.GetResponse {
   var sourceUrl string
 
   if media.Found {
     sourceUrl = formMediaFileUrl(h.hostPrefix, media.Path)
   }
-  return &media_service.GetResponse{
+  return &mediaservice.GetResponse{
     Found:     media.Found,
     Name:      media.Name,
     Section:   media.Section,
@@ -190,13 +236,13 @@ func (h *Handler) formGetResponse(media *domain.Media) *media_service.GetRespons
   }
 }
 
-func (h *Handler) formGetBatchResponse(mediaBatch []*domain.Media) *media_service.GetBatchResponse {
-  parts := make([]*media_service.GetResponse, 0, len(mediaBatch))
+func (h *Handler) formGetBatchResponse(mediaBatch []*domain.Media) *mediaservice.GetBatchResponse {
+  parts := make([]*mediaservice.GetResponse, 0, len(mediaBatch))
 
   for _, media := range mediaBatch {
     parts = append(parts, h.formGetResponse(media))
   }
-  return &media_service.GetBatchResponse{
+  return &mediaservice.GetBatchResponse{
     Parts: parts,
   }
 }

@@ -58,6 +58,18 @@ func (h *Handler) BindRouter() {
   http.Handle("/health", errs.MiddlewareErr(h.HandleHealth))
 }
 
+// HandleSuggest
+//
+// @Summary Suggest method for tickers suggesting
+// @Description Suggest method provide tickers short info by query equal part of ticker id, company name, homepage url
+// @Tags Suggesting
+// @Produce            application/json
+// @Param request body searchservice.SuggestRequest true "Request"
+// @Success 200 {object} searchservice.SuggestResponse
+// @Failure 400, 401, 403, 500 {object} errs.Error
+// @Security ApiKeyAuth
+// @Router /suggest [post]
+//
 func (h *Handler) HandleSuggest(w http.ResponseWriter, r *http.Request) error {
   suggestReq := &searchservice.SuggestRequest{}
 
@@ -81,6 +93,18 @@ func (h *Handler) HandleSuggest(w http.ResponseWriter, r *http.Request) error {
   return nil
 }
 
+// HandleSearch
+//
+// @Summary Search method for tickers searching
+// @Description Suggest method provide tickers models equal to /tickers response from Client Service by query
+// @Tags Searching
+// @Produce            application/json
+// @Param request body searchservice.SearchRequest true "Request"
+// @Success 200 {object} searchservice.SearchResponse
+// @Failure 400, 401, 403, 500 {object} errs.Error
+// @Security ApiKeyAuth
+// @Router /search [post]
+//
 func (h *Handler) HandleSearch(w http.ResponseWriter, r *http.Request) error {
   searchReq := &searchservice.SearchRequest{}
 
@@ -129,6 +153,16 @@ func (h *Handler) HandleSearch(w http.ResponseWriter, r *http.Request) error {
   return nil
 }
 
+// HandleHealth
+//
+// @Summary Health check method
+// @Description Health method check http server health
+// @Tags Health
+// @Produce application/json
+// @Success 200 {object} common.HealthResponse
+// @Success 500 {object} errs.Error
+// @Router /health [get]
+//
 func (h *Handler) HandleHealth(w http.ResponseWriter, _ *http.Request) error {
   if err := utils.WriteResponse(w, &common.HealthResponse{
     Success: true,

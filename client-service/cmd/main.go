@@ -12,10 +12,22 @@ import (
   log "github.com/sirupsen/logrus"
 )
 
+// @title Client Service API
+// @version 1.0.0
+// @description API for client resource service
+//
+// @host localhost:8081
+// @BasePath /
+// @schemes http
+//
+// @securityDefinitions.apikey ApiKeyAuth
+// @in header
+// @name X-Auth-Token
+//
 func main() {
   ctx := context.Background()
 
-  servePort := flag.String("port", "8080", "serving port")
+  servePort := flag.String("port", "8081", "serving port")
   configPath := flag.String("path", "", "path to service config file")
   flag.Parse()
 

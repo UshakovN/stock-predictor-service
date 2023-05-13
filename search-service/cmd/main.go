@@ -12,10 +12,22 @@ import (
   log "github.com/sirupsen/logrus"
 )
 
+// @title Search Service API
+// @version 1.0.0
+// @description API for searching service
+//
+// @host localhost:8084
+// @BasePath /
+// @schemes http
+//
+// @securityDefinitions.apikey ApiKeyAuth
+// @in header
+// @name X-Auth-Token
+//
 func main() {
   ctx := context.Background()
 
-  servePort := flag.String("port", "8080", "serving port")
+  servePort := flag.String("port", "8084", "serving port")
   configPath := flag.String("path", "", "path to service config file")
   flag.Parse()
 

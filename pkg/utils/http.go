@@ -13,6 +13,16 @@ import (
   log "github.com/sirupsen/logrus"
 )
 
+// HandleHealth
+//
+// @Summary Health check method
+// @Description Health method check http server health
+// @Tags Health
+// @Produce application/json
+// @Success 200 {object} common.HealthResponse
+// @Success 500 {object} errs.Error
+// @Router /health [get]
+//
 func HandleHealth() http.HandlerFunc {
   return func(w http.ResponseWriter, _ *http.Request) {
     if err := WriteResponse(w, &common.HealthResponse{

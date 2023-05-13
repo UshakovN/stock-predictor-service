@@ -44,6 +44,18 @@ func (h *Handler) BindRouter() {
   http.Handle("/health", utils.HandleHealth())
 }
 
+// HandleSwagger
+//
+// @Summary Swagger redirect method
+// @Description Swagger method made redirect to swagger documentation url for service by their name specified in query
+// @Tags Documentation
+// @Produce            application/json
+// @Param request  service  query  string  true  "Service Name"
+// @Success 302
+// @Failure 400, 401, 403, 500 {object} errs.Error
+// @Security HttpBasicAuth
+// @Router /swagger [get]
+//
 func (h *Handler) HandleSwagger() errs.HandlerErr {
   const query = "service"
 
