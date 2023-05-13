@@ -32,7 +32,7 @@ func MiddlewareErr(handler HandlerErr) http.HandlerFunc {
         ErrTypeNotFoundContent:
         statusCode = http.StatusNotFound
       case
-        ErrTypeNotFoundToken:
+        ErrTypeNotFoundToken, ErrTypeNotFoundCredentials:
         statusCode = http.StatusUnauthorized
       case
         ErrTypeMalformedToken, ErrTypeExpiredToken, ErrTypeForbidden, ErrTypeWrongCredentials:

@@ -8,23 +8,26 @@ import (
   "main/internal/service"
   "main/internal/storage"
 
+  _ "main/docs"
+
+  "net/http"
+  "time"
+
   "github.com/UshakovN/stock-predictor-service/auth"
   authservice "github.com/UshakovN/stock-predictor-service/contract/auth-service"
   "github.com/UshakovN/stock-predictor-service/contract/common"
   "github.com/UshakovN/stock-predictor-service/errs"
   "github.com/UshakovN/stock-predictor-service/hash"
+  "github.com/UshakovN/stock-predictor-service/swagger"
   "github.com/UshakovN/stock-predictor-service/utils"
   log "github.com/sirupsen/logrus"
-
-  "net/http"
-  "time"
 )
 
 type Handler struct {
-  ctx      context.Context
-  manager  auth.TokenManager
-  service  service.UserAuthService
-  apiToken string
+  ctx     context.Context
+  manager auth.TokenManager
+  service service.UserAuthService
+  swagger *swagger.Handler
 }
 
 func NewHandler(ctx context.Context, config *Config) (*Handler, error) {
@@ -51,6 +54,7 @@ func NewHandler(ctx context.Context, config *Config) (*Handler, error) {
     ctx:     ctx,
     manager: tokenManager,
     service: authService,
+    swagger: swagger.NewHandler(config.SwaggerConfig),
   }, nil
 }
 
@@ -60,6 +64,7 @@ func (h *Handler) BindRouter() {
   http.Handle("/refresh", errs.MiddlewareErr(h.HandleRefresh))
   http.Handle("/check", errs.MiddlewareErr(h.MiddlewareAuth(h.HandleCheck)))
   http.Handle("/health", errs.MiddlewareErr(h.HandleHealth))
+  http.Handle("/swagger/", errs.MiddlewareErr(h.swagger.HandleSwagger()))
 }
 
 func (h *Handler) MiddlewareAuth(handler errs.HandlerErr) errs.HandlerErr {
@@ -81,6 +86,18 @@ func (h *Handler) MiddlewareAuth(handler errs.HandlerErr) errs.HandlerErr {
   }
 }
 
+// HandleSignUp
+//
+// @Summary Sign Up method for service users
+// @Description Sign Up method create service user model, put model in storage, create access and refresh tokens
+// @Tags Authentication
+// @Produce            application/json
+// @Param request body authservice.SignUpRequest true "Request"
+// @Success 200 {object} authservice.SignUpResponse
+// @Failure 400 {object} errs.Error
+// @Failure 500 {object} errs.Error
+// @Router /sign-up [post]
+//
 func (h *Handler) HandleSignUp(w http.ResponseWriter, r *http.Request) error {
   req := &authservice.SignUpRequest{}
 
@@ -109,6 +126,18 @@ func (h *Handler) HandleSignUp(w http.ResponseWriter, r *http.Request) error {
   return nil
 }
 
+// HandleSignIn
+//
+// @Summary Sign In method for service users
+// @Description Sign In method search user model in storage, check provided credentials, generate access and refresh tokens
+// @Tags Authentication
+// @Produce            application/json
+// @Param request body authservice.SignInRequest true "Request"
+// @Success 200 {object} authservice.SignInResponse
+// @Failure 400 {object} errs.Error
+// @Failure 500 {object} errs.Error
+// @Router /sign-in [post]
+//
 func (h *Handler) HandleSignIn(w http.ResponseWriter, r *http.Request) error {
   req := &authservice.SignInRequest{}
 
@@ -136,6 +165,20 @@ func (h *Handler) HandleSignIn(w http.ResponseWriter, r *http.Request) error {
   return nil
 }
 
+// HandleRefresh
+//
+// @Summary Refresh tokens method for service users
+// @Description Refresh method check provided refresh token and generate new access and refresh tokens
+// @Tags Authentication
+// @Produce            application/json
+// @Param request body authservice.RefreshRequest true "Request"
+// @Success 200 {object} authservice.RefreshResponse
+// @Failure 400 {object} errs.Error
+// @Failure 401 {object} errs.Error
+// @Failure 403 {object} errs.Error
+// @Failure 500 {object} errs.Error
+// @Router /refresh [post]
+//
 func (h *Handler) HandleRefresh(w http.ResponseWriter, r *http.Request) error {
   req := &authservice.RefreshRequest{}
 
@@ -160,6 +203,20 @@ func (h *Handler) HandleRefresh(w http.ResponseWriter, r *http.Request) error {
   return nil
 }
 
+// HandleCheck
+//
+// @Summary Check access token method for service users
+// @Description Check method check user jwt access token from request header and collect user info
+// @Tags Authorization
+// @Produce application/json
+// @Success 200 {object} authservice.CheckUserResponse
+// @Failure 400 {object} errs.Error
+// @Failure 401 {object} errs.Error
+// @Failure 403 {object} errs.Error
+// @Failure 500 {object} errs.Error
+// @Security ApiKeyAuth
+// @Router /check [get]
+//
 func (h *Handler) HandleCheck(w http.ResponseWriter, r *http.Request) error {
   req := &authservice.CheckUserRequest{}
 
@@ -197,6 +254,17 @@ func (h *Handler) ContinuouslyServeHttp(port string) {
   }
 }
 
+// HandleHealth
+//
+// @Summary Health check method
+// @Description Health method check http server health
+// @Tags Health
+// @Produce application/json
+// @Success 200 {object} common.HealthResponse
+// @Success 500 {object} errs.Error
+// @Security ApiKeyAuth
+// @Router /health [get]
+//
 func (h *Handler) HandleHealth(w http.ResponseWriter, _ *http.Request) error {
   if err := utils.WriteResponse(w, &common.HealthResponse{
     Success: true,

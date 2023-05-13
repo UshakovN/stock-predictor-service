@@ -1,0 +1,9 @@
+swagger_services:
+  - name: auth-service
+    prefix: http://localhost:8080
+  - name: client-service
+    prefix: http://localhost:8082
+
+swagger_config:
+  user: swagger
+  password: scp

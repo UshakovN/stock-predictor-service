@@ -13,3 +13,7 @@ storage_config:
   password: scp
   db_name: postgres
   ssl_mode: disable
+
+swagger_config:
+  user: swagger
+  password: scp

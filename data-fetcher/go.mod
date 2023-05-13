@@ -1,6 +1,6 @@
 module main
 
-go 1.19
+go 1.18
 
 replace github.com/UshakovN/stock-predictor-service v0.0.0-20230414193523-7fa2be658f07 => ./../pkg
 

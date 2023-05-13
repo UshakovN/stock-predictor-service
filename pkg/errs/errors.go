@@ -24,6 +24,7 @@ const (
   ErrTypeExpiredToken
   ErrTypeForbidden
   ErrTypeWrongCredentials
+  ErrTypeNotFoundCredentials
 )
 
 const (
@@ -37,6 +38,7 @@ const (
   messageExpiredToken        = "expired token"
   messageForbidden           = "forbidden"
   messageWrongCredentials    = "wrong credentials"
+  messageNotFoundCredentials = "not found credentials"
 )
 
 type Error struct {
@@ -83,6 +85,8 @@ func NewError(errType int, logMessage *LogMessage) *Error {
     err.Message = messageWrongCredentials
   case ErrTypeNotFoundToken:
     err.Message = messageNotFoundToken
+  case ErrTypeNotFoundCredentials:
+    err.Message = messageNotFoundCredentials
   default:
     err.Message = messageInternalServerError
   }

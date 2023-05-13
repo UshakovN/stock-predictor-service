@@ -1,0 +1,234 @@
+basePath: /
+definitions:
+  authservice.CheckUserResponse:
+    properties:
+      created_at:
+        type: string
+      email:
+        type: string
+      full_name:
+        type: string
+      success:
+        type: boolean
+      user_id:
+        type: string
+    type: object
+  authservice.RefreshRequest:
+    properties:
+      refresh_token:
+        type: string
+    type: object
+  authservice.RefreshResponse:
+    properties:
+      access_token:
+        type: string
+      refresh_token:
+        type: string
+      success:
+        type: boolean
+    type: object
+  authservice.SignInRequest:
+    properties:
+      email:
+        type: string
+      password:
+        type: string
+    type: object
+  authservice.SignInResponse:
+    properties:
+      access_token:
+        type: string
+      refresh_token:
+        type: string
+      success:
+        type: boolean
+    type: object
+  authservice.SignUpRequest:
+    properties:
+      email:
+        type: string
+      full_name:
+        type: string
+      password:
+        type: string
+    type: object
+  authservice.SignUpResponse:
+    properties:
+      access_token:
+        type: string
+      refresh_token:
+        type: string
+      status:
+        type: boolean
+    type: object
+  common.HealthResponse:
+    properties:
+      success:
+        type: boolean
+    type: object
+  errs.Error:
+    properties:
+      message:
+        type: string
+    type: object
+host: localhost:8080
+info:
+  contact: {}
+  description: API for single authentication and authorization service
+  title: Auth Service API
+  version: 1.0.0
+paths:
+  /check:
+    get:
+      description: Check method check user jwt access token from request header and
+        collect user info
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/authservice.CheckUserResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/errs.Error'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/errs.Error'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/errs.Error'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/errs.Error'
+      security:
+      - ApiKeyAuth: []
+      summary: Check access token method for service users
+      tags:
+      - Authorization
+  /health:
+    get:
+      description: Health method check http server health
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/common.HealthResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/errs.Error'
+      security:
+      - ApiKeyAuth: []
+      summary: Health check method
+      tags:
+      - Health
+  /refresh:
+    post:
+      description: Refresh method check provided refresh token and generate new access
+        and refresh tokens
+      parameters:
+      - description: Request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/authservice.RefreshRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/authservice.RefreshResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/errs.Error'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/errs.Error'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/errs.Error'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/errs.Error'
+      summary: Refresh tokens method for service users
+      tags:
+      - Authentication
+  /sign-in:
+    post:
+      description: Sign In method search user model in storage, check provided credentials,
+        generate access and refresh tokens
+      parameters:
+      - description: Request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/authservice.SignInRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/authservice.SignInResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/errs.Error'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/errs.Error'
+      summary: Sign In method for service users
+      tags:
+      - Authentication
+  /sign-up:
+    post:
+      description: Sign Up method create service user model, put model in storage,
+        create access and refresh tokens
+      parameters:
+      - description: Request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/authservice.SignUpRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/authservice.SignUpResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/errs.Error'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/errs.Error'
+      summary: Sign Up method for service users
+      tags:
+      - Authentication
+schemes:
+- http
+securityDefinitions:
+  ApiKeyAuth:
+    in: header
+    name: X-Auth-Token
+    type: apiKey
+swagger: "2.0"
