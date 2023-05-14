@@ -3,8 +3,6 @@ swagger_services:
     prefix: http://localhost:8080
   - name: client-service
     prefix: http://localhost:8081
-  - name: data-fetcher
-    prefix: http://localhost:8082
   - name: media-service
     prefix: http://localhost:8083
   - name: search-service

@@ -43,7 +43,7 @@ func main() {
     fetcher.SetTickerId(*tickerId)
   }
 
-  http.Handle("/health", utils.HandleHealth())
+  http.Handle("/health", HandleHealthWrapper())
 
   go utils.ContinuouslyServe(*servePort)
   log.Infof("ready for serve http on port: %s", *servePort)
@@ -59,4 +59,17 @@ func serviceShutdown() {
   signal.Notify(exitSignal, syscall.SIGINT, syscall.SIGTERM)
 
   <-exitSignal
+}
+
+// HandleHealthWrapper
+//
+// @Summary Health check method
+// @Description Health method check http server health
+// @Tags Health
+// @Produce application/json
+// @Success 200 {object} common.HealthResponse
+// @Router /health [get]
+//
+func HandleHealthWrapper() http.HandlerFunc {
+  return utils.HandleHealth()
 }

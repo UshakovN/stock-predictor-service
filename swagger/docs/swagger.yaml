@@ -1,0 +1,80 @@
+basePath: /
+definitions:
+  common.HealthResponse:
+    properties:
+      success:
+        type: boolean
+    type: object
+  errs.Error:
+    properties:
+      message:
+        type: string
+    type: object
+  internal_handler.ServicesResponse:
+    properties:
+      service_names:
+        items:
+          type: string
+        type: array
+      success:
+        type: boolean
+    type: object
+host: localhost:8086
+info:
+  contact: {}
+  description: API for single swagger service
+  title: Swagger Service API
+  version: 1.0.0
+paths:
+  /health:
+    get:
+      description: Health method check http server health
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/common.HealthResponse'
+      summary: Health check method
+      tags:
+      - Health
+  /redirect:
+    get:
+      description: Redirect method made redirect to swagger documentation url for
+        service
+      parameters:
+      - description: Service Name
+        in: query
+        name: service
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "302":
+          description: Found
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/errs.Error'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/errs.Error'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/errs.Error'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/errs.Error'
+      security:
+      - HttpBasicAuth: []
+      summary: Redirect to swagger doc method
+      tags:
+      - Documentation
+schemes:
+- http
+swagger: "2.0"

@@ -175,9 +175,12 @@ func (m *mediaService) createNewMediaFileOrIgnore(
 }
 
 func (m *mediaService) formMediaFileId(fileName, sectionName string) string {
+  const separator = "/"
+
   sb := strings.Builder{}
-  sb.WriteString(fileName)
   sb.WriteString(sectionName)
+  sb.WriteString(separator)
+  sb.WriteString(fileName)
 
   fileInfo := sb.String()
   return m.hashManager.Hash(fileInfo)

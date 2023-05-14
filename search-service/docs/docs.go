@@ -16,55 +16,6 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
-        "/check": {
-            "get": {
-                "security": [
-                    {
-                        "ApiKeyAuth": []
-                    }
-                ],
-                "description": "Check method check user jwt access token from request header and collect user info",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Authorization"
-                ],
-                "summary": "Check access token method for service users",
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/authservice.CheckUserResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/errs.Error"
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "$ref": "#/definitions/errs.Error"
-                        }
-                    },
-                    "403": {
-                        "description": "Forbidden",
-                        "schema": {
-                            "$ref": "#/definitions/errs.Error"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/errs.Error"
-                        }
-                    }
-                }
-            }
-        },
         "/health": {
             "get": {
                 "description": "Health method check http server health",
@@ -85,16 +36,21 @@ const docTemplate = `{
                 }
             }
         },
-        "/refresh": {
+        "/search": {
             "post": {
-                "description": "Refresh method check provided refresh token and generate new access and refresh tokens",
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Suggest method provide tickers models equal to /tickers response from Client Service by query",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
-                    "Authentication"
+                    "Searching"
                 ],
-                "summary": "Refresh tokens method for service users",
+                "summary": "Search method for tickers searching",
                 "parameters": [
                     {
                         "description": "Request",
@@ -102,7 +58,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/authservice.RefreshRequest"
+                            "$ref": "#/definitions/searchservice.SearchRequest"
                         }
                     }
                 ],
@@ -110,7 +66,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/authservice.RefreshResponse"
+                            "$ref": "#/definitions/searchservice.SearchResponse"
                         }
                     },
                     "400": {
@@ -140,16 +96,21 @@ const docTemplate = `{
                 }
             }
         },
-        "/sign-in": {
+        "/suggest": {
             "post": {
-                "description": "Sign In method search user model in storage, check provided credentials, generate access and refresh tokens",
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Suggest method provide tickers short info by query equal part of ticker id, company name, homepage url",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
-                    "Authentication"
+                    "Suggesting"
                 ],
-                "summary": "Sign In method for service users",
+                "summary": "Suggest method for tickers suggesting",
                 "parameters": [
                     {
                         "description": "Request",
@@ -157,7 +118,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/authservice.SignInRequest"
+                            "$ref": "#/definitions/searchservice.SuggestRequest"
                         }
                     }
                 ],
@@ -165,7 +126,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/authservice.SignInResponse"
+                            "$ref": "#/definitions/searchservice.SuggestResponse"
                         }
                     },
                     "400": {
@@ -174,45 +135,14 @@ const docTemplate = `{
                             "$ref": "#/definitions/errs.Error"
                         }
                     },
-                    "500": {
-                        "description": "Internal Server Error",
+                    "401": {
+                        "description": "Unauthorized",
                         "schema": {
                             "$ref": "#/definitions/errs.Error"
                         }
-                    }
-                }
-            }
-        },
-        "/sign-up": {
-            "post": {
-                "description": "Sign Up method create service user model, put model in storage, create access and refresh tokens",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Authentication"
-                ],
-                "summary": "Sign Up method for service users",
-                "parameters": [
-                    {
-                        "description": "Request",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/authservice.SignUpRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/authservice.SignUpResponse"
-                        }
                     },
-                    "400": {
-                        "description": "Bad Request",
+                    "403": {
+                        "description": "Forbidden",
                         "schema": {
                             "$ref": "#/definitions/errs.Error"
                         }
@@ -228,97 +158,73 @@ const docTemplate = `{
         }
     },
     "definitions": {
-        "authservice.CheckUserResponse": {
+        "clientservice.Ticker": {
             "type": "object",
             "properties": {
+                "fields": {
+                    "$ref": "#/definitions/clientservice.TickerFields"
+                },
+                "media": {
+                    "$ref": "#/definitions/clientservice.TickerMedia"
+                }
+            }
+        },
+        "clientservice.TickerFields": {
+            "type": "object",
+            "properties": {
+                "active": {
+                    "type": "boolean"
+                },
+                "company_address": {
+                    "type": "string"
+                },
+                "company_city": {
+                    "type": "string"
+                },
+                "company_description": {
+                    "type": "string"
+                },
+                "company_locale": {
+                    "type": "string"
+                },
+                "company_name": {
+                    "type": "string"
+                },
+                "company_state": {
+                    "type": "string"
+                },
                 "created_at": {
                     "type": "string"
                 },
-                "email": {
+                "currency_name": {
                     "type": "string"
                 },
-                "full_name": {
+                "homepage_url": {
                     "type": "string"
                 },
-                "success": {
+                "ticker_id": {
+                    "type": "string"
+                },
+                "total_employees": {
+                    "type": "integer"
+                }
+            }
+        },
+        "clientservice.TickerMedia": {
+            "type": "object",
+            "properties": {
+                "found": {
                     "type": "boolean"
                 },
-                "user_id": {
+                "url": {
                     "type": "string"
                 }
             }
         },
-        "authservice.RefreshRequest": {
+        "clientservice.WithFields": {
             "type": "object",
             "properties": {
-                "refresh_token": {
-                    "type": "string"
-                }
-            }
-        },
-        "authservice.RefreshResponse": {
-            "type": "object",
-            "properties": {
-                "access_token": {
-                    "type": "string"
-                },
-                "refresh_token": {
-                    "type": "string"
-                },
-                "success": {
-                    "type": "boolean"
-                }
-            }
-        },
-        "authservice.SignInRequest": {
-            "type": "object",
-            "properties": {
-                "email": {
-                    "type": "string"
-                },
-                "password": {
-                    "type": "string"
-                }
-            }
-        },
-        "authservice.SignInResponse": {
-            "type": "object",
-            "properties": {
-                "access_token": {
-                    "type": "string"
-                },
-                "refresh_token": {
-                    "type": "string"
-                },
-                "success": {
-                    "type": "boolean"
-                }
-            }
-        },
-        "authservice.SignUpRequest": {
-            "type": "object",
-            "properties": {
-                "email": {
-                    "type": "string"
-                },
-                "full_name": {
-                    "type": "string"
-                },
-                "password": {
-                    "type": "string"
-                }
-            }
-        },
-        "authservice.SignUpResponse": {
-            "type": "object",
-            "properties": {
-                "access_token": {
-                    "type": "string"
-                },
-                "refresh_token": {
-                    "type": "string"
-                },
-                "status": {
+                "media": {
                     "type": "boolean"
                 }
             }
@@ -338,6 +244,105 @@ const docTemplate = `{
                     "type": "string"
                 }
             }
+        },
+        "searchservice.Info": {
+            "type": "object",
+            "properties": {
+                "company_description": {
+                    "type": "string"
+                },
+                "company_name": {
+                    "type": "string"
+                },
+                "homepage_url": {
+                    "type": "string"
+                },
+                "ticker_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "searchservice.Part": {
+            "type": "object",
+            "properties": {
+                "info": {
+                    "$ref": "#/definitions/searchservice.Info"
+                },
+                "score": {
+                    "type": "number"
+                }
+            }
+        },
+        "searchservice.SearchRequest": {
+            "type": "object",
+            "properties": {
+                "count": {
+                    "type": "integer"
+                },
+                "page": {
+                    "type": "integer"
+                },
+                "query": {
+                    "type": "string"
+                },
+                "with": {
+                    "$ref": "#/definitions/clientservice.WithFields"
+                }
+            }
+        },
+        "searchservice.SearchResponse": {
+            "type": "object",
+            "properties": {
+                "count": {
+                    "type": "integer"
+                },
+                "parts": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/clientservice.Ticker"
+                    }
+                },
+                "success": {
+                    "type": "boolean"
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
+        "searchservice.SuggestRequest": {
+            "type": "object",
+            "properties": {
+                "count": {
+                    "type": "integer"
+                },
+                "page": {
+                    "type": "integer"
+                },
+                "query": {
+                    "type": "string"
+                }
+            }
+        },
+        "searchservice.SuggestResponse": {
+            "type": "object",
+            "properties": {
+                "count": {
+                    "type": "integer"
+                },
+                "parts": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/searchservice.Part"
+                    }
+                },
+                "success": {
+                    "type": "boolean"
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
         }
     },
     "securityDefinitions": {
@@ -352,11 +357,11 @@ const docTemplate = `{
 // SwaggerInfo holds exported Swagger Info so clients can modify it
 var SwaggerInfo = &swag.Spec{
 	Version:          "1.0.0",
-	Host:             "localhost:8080",
+	Host:             "localhost:8084",
 	BasePath:         "/",
 	Schemes:          []string{"http"},
-	Title:            "Auth Service API",
-	Description:      "API for single authentication and authorization service",
+	Title:            "Search Service API",
+	Description:      "API for searching service",
 	InfoInstanceName: "swagger",
 	SwaggerTemplate:  docTemplate,
 	LeftDelim:        "{{",

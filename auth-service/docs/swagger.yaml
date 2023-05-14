@@ -120,12 +120,6 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/common.HealthResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/errs.Error'
-      security:
-      - ApiKeyAuth: []
       summary: Health check method
       tags:
       - Health

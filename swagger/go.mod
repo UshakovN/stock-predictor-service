@@ -7,6 +7,7 @@ replace github.com/UshakovN/stock-predictor-service v0.0.0-20230414193523-7fa2be
 require (
 	github.com/UshakovN/stock-predictor-service v0.0.0-20230414193523-7fa2be658f07
 	github.com/sirupsen/logrus v1.9.0
+	github.com/swaggo/swag v1.16.1
 )
 
 require (
@@ -20,9 +21,8 @@ require (
 	github.com/mailru/easyjson v0.7.6 // indirect
 	github.com/swaggo/files/v2 v2.0.0 // indirect
 	github.com/swaggo/http-swagger/v2 v2.0.1 // indirect
-	github.com/swaggo/swag v1.8.1 // indirect
-	golang.org/x/sys v0.5.0 // indirect
-	golang.org/x/tools v0.1.12 // indirect
+	golang.org/x/sys v0.6.0 // indirect
+	golang.org/x/tools v0.7.0 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )

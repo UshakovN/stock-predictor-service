@@ -76,7 +76,8 @@ func (s *userAuthService) SignIn(input *domain.SignInInput) (*domain.Tokens, err
     return nil, fmt.Errorf("cannot get user from storage: %v", err)
   }
   if !found {
-    return nil, fmt.Errorf("user with email '%s' not found", input.Email)
+    return nil, errs.NewErrorWithMessage(errs.ErrTypeNotFoundContent,
+      "user not found", nil)
   }
 
   if serviceUser.PasswordHash != s.passwordManager.Hash(input.Password) {

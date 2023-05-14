@@ -1,0 +1,497 @@
+basePath: /
+definitions:
+  clientservice.BetweenFilter:
+    properties:
+      field:
+        type: string
+      left_border: {}
+      right_border: {}
+    type: object
+  clientservice.BorderFilter:
+    properties:
+      compare:
+        type: string
+      field:
+        type: string
+      value: {}
+    type: object
+  clientservice.Filter:
+    properties:
+      between:
+        $ref: '#/definitions/clientservice.BetweenFilter'
+      border:
+        $ref: '#/definitions/clientservice.BorderFilter'
+      list:
+        $ref: '#/definitions/clientservice.ListFilter'
+    type: object
+  clientservice.ListFilter:
+    properties:
+      field:
+        type: string
+      values:
+        items: {}
+        type: array
+    type: object
+  clientservice.ModelInfo:
+    properties:
+      accuracy:
+        type: number
+      created_at:
+        type: string
+    type: object
+  clientservice.Pagination:
+    properties:
+      count:
+        type: integer
+      page:
+        type: integer
+    type: object
+  clientservice.Predict:
+    properties:
+      created_at:
+        type: string
+      date_predict:
+        type: string
+      predicted_movement:
+        type: string
+      ticker_id:
+        type: string
+    type: object
+  clientservice.PredictsResponse:
+    properties:
+      model_info:
+        $ref: '#/definitions/clientservice.ModelInfo'
+      parts:
+        items:
+          $ref: '#/definitions/clientservice.Predict'
+        type: array
+      success:
+        type: boolean
+    type: object
+  clientservice.Sort:
+    properties:
+      field:
+        type: string
+      order:
+        type: string
+    type: object
+  clientservice.Stock:
+    properties:
+      close_price:
+        type: number
+      created_at:
+        type: string
+      highest_price:
+        type: number
+      lowest_price:
+        type: number
+      open_price:
+        type: number
+      stocked_time:
+        type: string
+      ticker_id:
+        type: string
+      trading_volume:
+        type: number
+    type: object
+  clientservice.StocksRequest:
+    properties:
+      filters:
+        items:
+          $ref: '#/definitions/clientservice.Filter'
+        type: array
+      pagination:
+        $ref: '#/definitions/clientservice.Pagination'
+      sort:
+        $ref: '#/definitions/clientservice.Sort'
+    type: object
+  clientservice.StocksResponse:
+    properties:
+      count:
+        type: integer
+      stocks:
+        items:
+          $ref: '#/definitions/clientservice.Stock'
+        type: array
+      success:
+        type: boolean
+    type: object
+  clientservice.SubscribeRequest:
+    properties:
+      ticker_id:
+        type: string
+    type: object
+  clientservice.SubscribeResponse:
+    properties:
+      success:
+        type: boolean
+    type: object
+  clientservice.Subscription:
+    properties:
+      active:
+        type: boolean
+      created_at:
+        type: string
+      modified_at:
+        type: string
+      ticker_id:
+        type: string
+    type: object
+  clientservice.SubscriptionsRequest:
+    properties:
+      filter_active:
+        type: boolean
+    type: object
+  clientservice.SubscriptionsResponse:
+    properties:
+      parts:
+        items:
+          $ref: '#/definitions/clientservice.Subscription'
+        type: array
+      success:
+        type: boolean
+    type: object
+  clientservice.Ticker:
+    properties:
+      fields:
+        $ref: '#/definitions/clientservice.TickerFields'
+      media:
+        $ref: '#/definitions/clientservice.TickerMedia'
+    type: object
+  clientservice.TickerFields:
+    properties:
+      active:
+        type: boolean
+      company_address:
+        type: string
+      company_city:
+        type: string
+      company_description:
+        type: string
+      company_locale:
+        type: string
+      company_name:
+        type: string
+      company_state:
+        type: string
+      created_at:
+        type: string
+      currency_name:
+        type: string
+      homepage_url:
+        type: string
+      ticker_id:
+        type: string
+      total_employees:
+        type: integer
+    type: object
+  clientservice.TickerMedia:
+    properties:
+      found:
+        type: boolean
+      url:
+        type: string
+    type: object
+  clientservice.TickersRequest:
+    properties:
+      filters:
+        items:
+          $ref: '#/definitions/clientservice.Filter'
+        type: array
+      pagination:
+        $ref: '#/definitions/clientservice.Pagination'
+      sort:
+        $ref: '#/definitions/clientservice.Sort'
+      with:
+        $ref: '#/definitions/clientservice.WithFields'
+    type: object
+  clientservice.TickersResponse:
+    properties:
+      count:
+        type: integer
+      success:
+        type: boolean
+      tickers:
+        items:
+          $ref: '#/definitions/clientservice.Ticker'
+        type: array
+    type: object
+  clientservice.UnsubscribeRequest:
+    properties:
+      ticker_id:
+        type: string
+    type: object
+  clientservice.UnsubscribeResponse:
+    properties:
+      success:
+        type: boolean
+    type: object
+  clientservice.WithFields:
+    properties:
+      media:
+        type: boolean
+    type: object
+  common.HealthResponse:
+    properties:
+      success:
+        type: boolean
+    type: object
+  errs.Error:
+    properties:
+      message:
+        type: string
+    type: object
+host: localhost:8081
+info:
+  contact: {}
+  description: API for client resource service
+  title: Client Service API
+  version: 1.0.0
+paths:
+  /health:
+    get:
+      description: Health method check http server health
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/common.HealthResponse'
+      summary: Health check method
+      tags:
+      - Health
+  /predictions:
+    get:
+      description: Predictions method provide stocks price dynamic predictions for
+        client tickers subscriptions
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/clientservice.PredictsResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/errs.Error'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/errs.Error'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/errs.Error'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/errs.Error'
+      security:
+      - ApiKeyAuth: []
+      summary: Predictions model method
+      tags:
+      - Subscriptions
+  /stocks:
+    post:
+      description: Stocks method provide stocks models for client with pagination,
+        filtration, sorting
+      parameters:
+      - description: Request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/clientservice.StocksRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/clientservice.StocksResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/errs.Error'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/errs.Error'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/errs.Error'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/errs.Error'
+      security:
+      - ApiKeyAuth: []
+      summary: Stocks model method
+      tags:
+      - Resources
+  /subscribe:
+    post:
+      description: Subscribe method create subscription model for client with specified
+        ticker and store it
+      parameters:
+      - description: Request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/clientservice.SubscribeRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/clientservice.SubscribeResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/errs.Error'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/errs.Error'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/errs.Error'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/errs.Error'
+      security:
+      - ApiKeyAuth: []
+      summary: Subscribe method subscribe client to the ticker
+      tags:
+      - Subscriptions
+  /subscriptions:
+    get:
+      description: Subscriptions method provide subscriptions models for client with
+        filtration by active subscriptions
+      parameters:
+      - description: Request
+        in: body
+        name: request
+        schema:
+          $ref: '#/definitions/clientservice.SubscriptionsRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/clientservice.SubscriptionsResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/errs.Error'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/errs.Error'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/errs.Error'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/errs.Error'
+      security:
+      - ApiKeyAuth: []
+      summary: Subscriptions model method
+      tags:
+      - Subscriptions
+  /tickers:
+    post:
+      description: Tickers method provide tickers models for client with pagination,
+        filtration, sorting and media fields
+      parameters:
+      - description: Request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/clientservice.TickersRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/clientservice.TickersResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/errs.Error'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/errs.Error'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/errs.Error'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/errs.Error'
+      security:
+      - ApiKeyAuth: []
+      summary: Tickers model method
+      tags:
+      - Resources
+  /unsubscribe:
+    post:
+      description: Unsubscribe method deactivate subscription model for client on
+        the ticker and update stored model
+      parameters:
+      - description: Request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/clientservice.UnsubscribeRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/clientservice.UnsubscribeResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/errs.Error'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/errs.Error'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/errs.Error'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/errs.Error'
+      security:
+      - ApiKeyAuth: []
+      summary: Unsubscribe method unsubscribe client from the ticker
+      tags:
+      - Subscriptions
+schemes:
+- http
+securityDefinitions:
+  ApiKeyAuth:
+    in: header
+    name: X-Auth-Token
+    type: apiKey
+swagger: "2.0"

@@ -7,12 +7,15 @@ import (
   "os"
   "time"
 
+  _ "main/docs"
+
   authservice "github.com/UshakovN/stock-predictor-service/contract/auth-service"
   clientservice "github.com/UshakovN/stock-predictor-service/contract/client-service"
   "github.com/UshakovN/stock-predictor-service/contract/common"
   searchservice "github.com/UshakovN/stock-predictor-service/contract/search-service"
   es "github.com/UshakovN/stock-predictor-service/elasticsearch"
   "github.com/UshakovN/stock-predictor-service/errs"
+  "github.com/UshakovN/stock-predictor-service/swagger"
   "github.com/UshakovN/stock-predictor-service/utils"
   log "github.com/sirupsen/logrus"
 )
@@ -24,6 +27,7 @@ type Handler struct {
   authClient            authservice.Client
   elasticIndexName      string
   suggestUpdateDuration time.Duration
+  swagger               *swagger.Handler
 }
 
 func NewHandler(ctx context.Context, config *Config) (*Handler, error) {
@@ -40,8 +44,10 @@ func NewHandler(ctx context.Context, config *Config) (*Handler, error) {
   if err != nil {
     return nil, err
   }
-  authClient := authservice.NewClient(ctx, config.AuthServicePrefix, config.SuggestApiToken)
-
+  authClient := authservice.NewClient(ctx,
+    config.AuthServicePrefix,
+    config.SuggestApiToken,
+  )
   return &Handler{
     ctx:                   ctx,
     serviceClient:         serviceClient,
@@ -49,6 +55,7 @@ func NewHandler(ctx context.Context, config *Config) (*Handler, error) {
     authClient:            authClient,
     elasticIndexName:      config.ElasticIndexName,
     suggestUpdateDuration: suggestUpdateDuration,
+    swagger:               swagger.NewHandler(config.SwaggerConfig),
   }, nil
 }
 
@@ -56,6 +63,7 @@ func (h *Handler) BindRouter() {
   http.Handle("/suggest", errs.MiddlewareErr(h.authClient.AuthMiddleware(h.HandleSuggest)))
   http.Handle("/search", errs.MiddlewareErr(h.authClient.AuthMiddleware(h.HandleSearch)))
   http.Handle("/health", errs.MiddlewareErr(h.HandleHealth))
+  http.Handle("/swagger/", errs.MiddlewareErr(h.swagger.HandleSwagger()))
 }
 
 // HandleSuggest
@@ -66,7 +74,7 @@ func (h *Handler) BindRouter() {
 // @Produce            application/json
 // @Param request body searchservice.SuggestRequest true "Request"
 // @Success 200 {object} searchservice.SuggestResponse
-// @Failure 400, 401, 403, 500 {object} errs.Error
+// @Failure 400,401,403,500 {object} errs.Error
 // @Security ApiKeyAuth
 // @Router /suggest [post]
 //
@@ -101,7 +109,7 @@ func (h *Handler) HandleSuggest(w http.ResponseWriter, r *http.Request) error {
 // @Produce            application/json
 // @Param request body searchservice.SearchRequest true "Request"
 // @Success 200 {object} searchservice.SearchResponse
-// @Failure 400, 401, 403, 500 {object} errs.Error
+// @Failure 400,401,403,500 {object} errs.Error
 // @Security ApiKeyAuth
 // @Router /search [post]
 //
@@ -160,7 +168,6 @@ func (h *Handler) HandleSearch(w http.ResponseWriter, r *http.Request) error {
 // @Tags Health
 // @Produce application/json
 // @Success 200 {object} common.HealthResponse
-// @Success 500 {object} errs.Error
 // @Router /health [get]
 //
 func (h *Handler) HandleHealth(w http.ResponseWriter, _ *http.Request) error {

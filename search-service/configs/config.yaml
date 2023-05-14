@@ -10,3 +10,7 @@ elastic_search_prefix: http://localhost:9200
 elastic_index_name: ticker_index
 
 suggest_update_hours: 1
+
+swagger_config:
+  user: swagger
+  password: scp

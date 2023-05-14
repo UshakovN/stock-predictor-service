@@ -6,6 +6,9 @@ import (
   "main/internal/domain"
   "main/internal/service"
   "main/internal/storage"
+
+  _ "main/docs"
+
   "net/http"
 
   authservice "github.com/UshakovN/stock-predictor-service/contract/auth-service"
@@ -13,6 +16,7 @@ import (
   "github.com/UshakovN/stock-predictor-service/contract/common"
   mediaservice "github.com/UshakovN/stock-predictor-service/contract/media-service"
   "github.com/UshakovN/stock-predictor-service/errs"
+  "github.com/UshakovN/stock-predictor-service/swagger"
   "github.com/UshakovN/stock-predictor-service/utils"
   log "github.com/sirupsen/logrus"
 )
@@ -21,6 +25,7 @@ type Handler struct {
   ctx     context.Context
   service service.ClientService
   auth    authservice.Client
+  swagger *swagger.Handler
 }
 
 func (h *Handler) BindRouter() {
@@ -31,6 +36,7 @@ func (h *Handler) BindRouter() {
   http.Handle("/subscriptions", errs.MiddlewareErr(h.auth.AuthMiddleware(h.HandleSubscriptions)))
   http.Handle("/predictions", errs.MiddlewareErr(h.auth.AuthMiddleware(h.HandlePredictions)))
   http.Handle("/health", errs.MiddlewareErr(h.HandleHealth))
+  http.Handle("/swagger/", errs.MiddlewareErr(h.swagger.HandleSwagger()))
 }
 
 func NewHandler(ctx context.Context, config *Config) (*Handler, error) {
@@ -38,18 +44,23 @@ func NewHandler(ctx context.Context, config *Config) (*Handler, error) {
   if err != nil {
     return nil, fmt.Errorf("cannot create new storage: %v", err)
   }
-  mediaClient := mediaservice.NewClient(ctx, config.MediaServicePrefix, config.MediaServiceApiToken)
-
+  mediaClient := mediaservice.NewClient(ctx,
+    config.MediaServicePrefix,
+    config.MediaServiceApiToken,
+  )
   newService := service.NewClientService(ctx, &service.Config{
     Storage:     newStorage,
     MediaClient: mediaClient,
   })
-  authClient := authservice.NewClient(ctx, config.AuthServicePrefix, config.ClientServiceApiToken)
-
+  authClient := authservice.NewClient(ctx,
+    config.AuthServicePrefix,
+    config.ClientServiceApiToken,
+  )
   return &Handler{
     ctx:     ctx,
     service: newService,
     auth:    authClient,
+    swagger: swagger.NewHandler(config.SwaggerConfig),
   }, nil
 }
 
@@ -61,7 +72,7 @@ func NewHandler(ctx context.Context, config *Config) (*Handler, error) {
 // @Produce            application/json
 // @Param request body clientservice.TickersRequest true "Request"
 // @Success 200 {object} clientservice.TickersResponse
-// @Failure 400, 401, 403, 500 {object} errs.Error
+// @Failure 400,401,403,500 {object} errs.Error
 // @Security ApiKeyAuth
 // @Router /tickers [post]
 //
@@ -106,7 +117,7 @@ func (h *Handler) HandleTickers(w http.ResponseWriter, r *http.Request) error {
 // @Produce            application/json
 // @Param request body clientservice.StocksRequest true "Request"
 // @Success 200 {object} clientservice.StocksResponse
-// @Failure 400, 401, 403, 500 {object} errs.Error
+// @Failure 400,401,403,500 {object} errs.Error
 // @Security ApiKeyAuth
 // @Router /stocks [post]
 //
@@ -151,7 +162,7 @@ func (h *Handler) HandleStocks(w http.ResponseWriter, r *http.Request) error {
 // @Produce            application/json
 // @Param request body clientservice.SubscribeRequest true "Request"
 // @Success 200 {object} clientservice.SubscribeResponse
-// @Failure 400, 401, 403, 500 {object} errs.Error
+// @Failure 400,401,403,500 {object} errs.Error
 // @Security ApiKeyAuth
 // @Router /subscribe [post]
 //
@@ -189,7 +200,7 @@ func (h *Handler) HandleSubscribe(w http.ResponseWriter, r *http.Request) error 
 // @Produce            application/json
 // @Param request body clientservice.UnsubscribeRequest true "Request"
 // @Success 200 {object} clientservice.UnsubscribeResponse
-// @Failure 400, 401, 403, 500 {object} errs.Error
+// @Failure 400,401,403,500 {object} errs.Error
 // @Security ApiKeyAuth
 // @Router /unsubscribe [post]
 //
@@ -225,9 +236,9 @@ func (h *Handler) HandleUnsubscribe(w http.ResponseWriter, r *http.Request) erro
 // @Description Subscriptions method provide subscriptions models for client with filtration by active subscriptions
 // @Tags Subscriptions
 // @Produce            application/json
-// @Param request body clientservice.SubscriptionsRequest
+// @Param request body clientservice.SubscriptionsRequest false "Request"
 // @Success 200 {object} clientservice.SubscriptionsResponse
-// @Failure 400, 401, 403, 500 {object} errs.Error
+// @Failure 400,401,403,500 {object} errs.Error
 // @Security ApiKeyAuth
 // @Router /subscriptions [get]
 //
@@ -265,7 +276,7 @@ func (h *Handler) HandleSubscriptions(w http.ResponseWriter, r *http.Request) er
 // @Tags Subscriptions
 // @Produce application/json
 // @Success 200 {object} clientservice.PredictsResponse
-// @Failure 400, 401, 403, 500 {object} errs.Error
+// @Failure 400,401,403,500 {object} errs.Error
 // @Security ApiKeyAuth
 // @Router /predictions [get]
 //
@@ -302,7 +313,6 @@ func (h *Handler) HandlePredictions(w http.ResponseWriter, r *http.Request) erro
 // @Tags Health
 // @Produce application/json
 // @Success 200 {object} common.HealthResponse
-// @Success 500 {object} errs.Error
 // @Router /health [get]
 //
 func (h *Handler) HandleHealth(w http.ResponseWriter, _ *http.Request) error {

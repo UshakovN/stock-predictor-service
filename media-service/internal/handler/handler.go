@@ -7,6 +7,9 @@ import (
   "main/internal/queue"
   "main/internal/service"
   "main/internal/storage"
+
+  _ "main/docs"
+
   "net/http"
   "strings"
 
@@ -15,6 +18,7 @@ import (
   mediaservice "github.com/UshakovN/stock-predictor-service/contract/media-service"
   "github.com/UshakovN/stock-predictor-service/errs"
   "github.com/UshakovN/stock-predictor-service/hash"
+  "github.com/UshakovN/stock-predictor-service/swagger"
   "github.com/UshakovN/stock-predictor-service/utils"
   log "github.com/sirupsen/logrus"
 )
@@ -26,6 +30,7 @@ type Handler struct {
   service    service.MediaService
   auth       authservice.Client
   hostPrefix string
+  swagger    *swagger.Handler
 }
 
 func NewHandler(ctx context.Context, hostPrefix string, config *Config) (*Handler, error) {
@@ -44,25 +49,26 @@ func NewHandler(ctx context.Context, hostPrefix string, config *Config) (*Handle
   if err != nil {
     return nil, fmt.Errorf("cannot create new media service: %v", err)
   }
-  auth := authservice.NewClient(ctx, config.AuthServicePrefix, config.MediaServiceApiToken)
-
+  authClient := authservice.NewClient(ctx,
+    config.AuthServicePrefix,
+    config.MediaServiceApiToken,
+  )
   return &Handler{
     ctx:        ctx,
     service:    mediaService,
-    auth:       auth,
+    auth:       authClient,
     hostPrefix: hostPrefix, // inject host prefix for serve media content
+    swagger:    swagger.NewHandler(config.SwaggerConfig),
   }, nil
 }
 
 func (h *Handler) BindRouter() {
   http.Handle("/stored_media/", bindFileServer())
-
   http.Handle("/get", errs.MiddlewareErr(h.auth.AuthMiddleware(h.HandleGet)))
   http.Handle("/get-batch", errs.MiddlewareErr(h.auth.AuthMiddleware(h.HandleGetBatch)))
   http.Handle("/put-queue", errs.MiddlewareErr(h.auth.AuthMiddleware(h.HandlePutQueue)))
   http.Handle("/health", errs.MiddlewareErr(h.HandleHealth))
-
-  log.Printf("handler router is configured")
+  http.Handle("/swagger/", errs.MiddlewareErr(h.swagger.HandleSwagger()))
 }
 
 func bindFileServer() http.Handler {
@@ -78,7 +84,7 @@ func bindFileServer() http.Handler {
 // @Produce            application/json
 // @Param request body mediaservice.GetRequest true "Request"
 // @Success 200 {object} mediaservice.GetResponse
-// @Failure 400, 401, 403, 500 {object} errs.Error
+// @Failure 400,401,403,500 {object} errs.Error
 // @Security ApiKeyAuth
 // @Router /get [post]
 //
@@ -113,7 +119,7 @@ func (h *Handler) HandleGet(w http.ResponseWriter, r *http.Request) error {
 // @Produce            application/json
 // @Param request body mediaservice.GetBatchRequest true "Request"
 // @Success 200 {object} mediaservice.GetBatchResponse
-// @Failure 400, 401, 403, 500 {object} errs.Error
+// @Failure 400,401,403,500 {object} errs.Error
 // @Security ApiKeyAuth
 // @Router /get-batch [post]
 //
@@ -154,7 +160,7 @@ func (h *Handler) HandleGetBatch(w http.ResponseWriter, r *http.Request) error {
 // @Produce            application/json
 // @Param request body mediaservice.PutRequest true "Request"
 // @Success 200 {object} mediaservice.PutResponse
-// @Failure 400, 401, 403, 500 {object} errs.Error
+// @Failure 400,401,403,500 {object} errs.Error
 // @Security ApiKeyAuth
 // @Router /put-queue [post]
 //
@@ -196,7 +202,6 @@ func (h *Handler) HandlePutQueue(w http.ResponseWriter, r *http.Request) error {
 // @Tags Health
 // @Produce application/json
 // @Success 200 {object} common.HealthResponse
-// @Success 500 {object} errs.Error
 // @Router /health [get]
 //
 func (h *Handler) HandleHealth(w http.ResponseWriter, _ *http.Request) error {

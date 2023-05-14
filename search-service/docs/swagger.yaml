@@ -1,0 +1,228 @@
+basePath: /
+definitions:
+  clientservice.Ticker:
+    properties:
+      fields:
+        $ref: '#/definitions/clientservice.TickerFields'
+      media:
+        $ref: '#/definitions/clientservice.TickerMedia'
+    type: object
+  clientservice.TickerFields:
+    properties:
+      active:
+        type: boolean
+      company_address:
+        type: string
+      company_city:
+        type: string
+      company_description:
+        type: string
+      company_locale:
+        type: string
+      company_name:
+        type: string
+      company_state:
+        type: string
+      created_at:
+        type: string
+      currency_name:
+        type: string
+      homepage_url:
+        type: string
+      ticker_id:
+        type: string
+      total_employees:
+        type: integer
+    type: object
+  clientservice.TickerMedia:
+    properties:
+      found:
+        type: boolean
+      url:
+        type: string
+    type: object
+  clientservice.WithFields:
+    properties:
+      media:
+        type: boolean
+    type: object
+  common.HealthResponse:
+    properties:
+      success:
+        type: boolean
+    type: object
+  errs.Error:
+    properties:
+      message:
+        type: string
+    type: object
+  searchservice.Info:
+    properties:
+      company_description:
+        type: string
+      company_name:
+        type: string
+      homepage_url:
+        type: string
+      ticker_id:
+        type: string
+    type: object
+  searchservice.Part:
+    properties:
+      info:
+        $ref: '#/definitions/searchservice.Info'
+      score:
+        type: number
+    type: object
+  searchservice.SearchRequest:
+    properties:
+      count:
+        type: integer
+      page:
+        type: integer
+      query:
+        type: string
+      with:
+        $ref: '#/definitions/clientservice.WithFields'
+    type: object
+  searchservice.SearchResponse:
+    properties:
+      count:
+        type: integer
+      parts:
+        items:
+          $ref: '#/definitions/clientservice.Ticker'
+        type: array
+      success:
+        type: boolean
+      total:
+        type: integer
+    type: object
+  searchservice.SuggestRequest:
+    properties:
+      count:
+        type: integer
+      page:
+        type: integer
+      query:
+        type: string
+    type: object
+  searchservice.SuggestResponse:
+    properties:
+      count:
+        type: integer
+      parts:
+        items:
+          $ref: '#/definitions/searchservice.Part'
+        type: array
+      success:
+        type: boolean
+      total:
+        type: integer
+    type: object
+host: localhost:8084
+info:
+  contact: {}
+  description: API for searching service
+  title: Search Service API
+  version: 1.0.0
+paths:
+  /health:
+    get:
+      description: Health method check http server health
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/common.HealthResponse'
+      summary: Health check method
+      tags:
+      - Health
+  /search:
+    post:
+      description: Suggest method provide tickers models equal to /tickers response
+        from Client Service by query
+      parameters:
+      - description: Request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/searchservice.SearchRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/searchservice.SearchResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/errs.Error'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/errs.Error'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/errs.Error'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/errs.Error'
+      security:
+      - ApiKeyAuth: []
+      summary: Search method for tickers searching
+      tags:
+      - Searching
+  /suggest:
+    post:
+      description: Suggest method provide tickers short info by query equal part of
+        ticker id, company name, homepage url
+      parameters:
+      - description: Request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/searchservice.SuggestRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/searchservice.SuggestResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/errs.Error'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/errs.Error'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/errs.Error'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/errs.Error'
+      security:
+      - ApiKeyAuth: []
+      summary: Suggest method for tickers suggesting
+      tags:
+      - Suggesting
+schemes:
+- http
+securityDefinitions:
+  ApiKeyAuth:
+    in: header
+    name: X-Auth-Token
+    type: apiKey
+swagger: "2.0"

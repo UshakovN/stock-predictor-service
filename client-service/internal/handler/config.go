@@ -1,6 +1,9 @@
 package handler
 
-import "github.com/UshakovN/stock-predictor-service/postgres"
+import (
+  "github.com/UshakovN/stock-predictor-service/postgres"
+  "github.com/UshakovN/stock-predictor-service/swagger"
+)
 
 type Config struct {
   ClientServiceApiToken string           `yaml:"client_service_api_token" required:"true"`
@@ -8,6 +11,7 @@ type Config struct {
   AuthServicePrefix     string           `yaml:"auth_service_prefix" required:"true"`
   MediaServicePrefix    string           `yaml:"media_service_prefix" required:"true"`
   StorageConfig         *postgres.Config `yaml:"storage_config" required:"true"`
+  SwaggerConfig         *swagger.Config  `yaml:"swagger_config" required:"true"`
 }
 
 func NewConfig() *Config {
