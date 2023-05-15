@@ -38,6 +38,8 @@ type stocksResponse struct {
   ResultsCount int            `json:"resultsCount"`
   Status       string         `json:"status"`
   Ticker       string         `json:"ticker"`
+  Count        int            `json:"count"`
+  NextURL      string         `json:"next_url"`
 }
 
 type tickerDetailsResults struct {

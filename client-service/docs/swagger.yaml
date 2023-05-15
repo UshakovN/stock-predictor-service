@@ -137,11 +137,6 @@ definitions:
       ticker_id:
         type: string
     type: object
-  clientservice.SubscriptionsRequest:
-    properties:
-      filter_active:
-        type: boolean
-    type: object
   clientservice.SubscriptionsResponse:
     properties:
       parts:
@@ -346,8 +341,8 @@ paths:
       produces:
       - application/json
       responses:
-        "200":
-          description: OK
+        "201":
+          description: Created
           schema:
             $ref: '#/definitions/clientservice.SubscribeResponse'
         "400":
@@ -376,11 +371,9 @@ paths:
       description: Subscriptions method provide subscriptions models for client with
         filtration by active subscriptions
       parameters:
-      - description: Request
-        in: body
-        name: request
-        schema:
-          $ref: '#/definitions/clientservice.SubscriptionsRequest'
+      - in: query
+        name: filter_active
+        type: boolean
       produces:
       - application/json
       responses:

@@ -93,7 +93,7 @@ func (h *Handler) MiddlewareAuth(handler errs.HandlerErr) errs.HandlerErr {
 // @Tags Authentication
 // @Produce            application/json
 // @Param request body authservice.SignUpRequest true "Request"
-// @Success 200 {object} authservice.SignUpResponse
+// @Success 201 {object} authservice.SignUpResponse
 // @Failure 400,500 {object} errs.Error
 // @Router /sign-up [post]
 //

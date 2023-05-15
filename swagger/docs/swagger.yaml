@@ -75,6 +75,37 @@ paths:
       summary: Redirect to swagger doc method
       tags:
       - Documentation
+  /services:
+    get:
+      description: Service method provide names of services support swagger
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_handler.ServicesResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/errs.Error'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/errs.Error'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/errs.Error'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/errs.Error'
+      security:
+      - HttpBasicAuth: []
+      summary: Services method for service names
+      tags:
+      - Documentation
 schemes:
 - http
 swagger: "2.0"

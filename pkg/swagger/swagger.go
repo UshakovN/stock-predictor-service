@@ -2,6 +2,7 @@ package swagger
 
 import (
   "net/http"
+  "strings"
 
   "github.com/UshakovN/stock-predictor-service/errs"
   httpSwagger "github.com/swaggo/http-swagger/v2"
@@ -44,7 +45,24 @@ func (h *Handler) BasicAuthMiddleware(handler errs.HandlerErr) errs.HandlerErr {
 
 func (h *Handler) HandleSwagger() errs.HandlerErr {
   return h.BasicAuthMiddleware(func(w http.ResponseWriter, r *http.Request) error {
-    httpSwagger.Handler()(w, r)
+    setCorsHeaders(w)
+    httpSwagger.Handler(httpSwagger.UIConfig(
+      map[string]string{
+        "defaultModelsExpandDepth": "-1",
+      },
+    ))(w, r)
     return nil
   })
+}
+
+func setCorsHeaders(w http.ResponseWriter) {
+  corsHeaders := strings.Join([]string{
+    "Content-Type",
+    "Access-Control-Allow-Headers",
+    "Authorization",
+    "X-Requested-With",
+  }, ", ")
+  w.Header().Add("Access-Control-Allow-Origin", "*")
+  w.Header().Add("Access-Control-Allow-Methods", "OPTIONS,POST,GET")
+  w.Header().Add("Access-Control-Allow-Headers", corsHeaders)
 }

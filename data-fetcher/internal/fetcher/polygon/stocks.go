@@ -81,10 +81,13 @@ func (f *Fetcher) getTickersResponse(query string) (*tickersResponse, error) {
   return tickersResp, nil
 }
 
-func buildTickersQuery() url.Values {
+func buildTickersQuery(tickerId string) url.Values {
   query := url.Values{}
   query.Add("active", "true")
   query.Add("order", "asc")
+  if tickerId != "" {
+    query.Add("ticker", tickerId)
+  }
   return query
 }
 
@@ -129,7 +132,7 @@ func (f *Fetcher) getTickerDetailsResponse(tickerId string) (*tickerDetailsRespo
   return tickerDetailsResp, nil
 }
 
-func (f *Fetcher) fetchSpecTicker(tickerId string) error {
+func (f *Fetcher) fetchTickerDetailsAndStocks(tickerId string) error {
   tickerDetails, err := f.fetchTickerDetails(tickerId)
   if err != nil {
     return fmt.Errorf("cannot fetch ticker details for ticker '%s': %v", tickerId, err)
@@ -144,7 +147,12 @@ func (f *Fetcher) fetchSpecTicker(tickerId string) error {
 }
 
 func (f *Fetcher) fetchTickers() error {
-  query := buildTickersQuery()
+  // if ticker id not specified will be fetched all tickers
+  return f.fetchTicker("")
+}
+
+func (f *Fetcher) fetchTicker(tickerId string) error {
+  query := buildTickersQuery(tickerId)
 
   for {
     queryStr := query.Encode()
@@ -159,7 +167,7 @@ func (f *Fetcher) fetchTickers() error {
     if respStatus != respStatusOK {
       return fmt.Errorf("bad response status: %s", respStatus)
     }
-    if tickersResp.Count == 0 || cursorURL == "" {
+    if tickersResp.Count == 0 {
       break
     }
     for _, tickerRespResult := range tickersResp.Results {
@@ -173,11 +181,13 @@ func (f *Fetcher) fetchTickers() error {
       if err = f.storage.PutTicker(ticker); err != nil {
         return fmt.Errorf("cannot put ticker to storage: %v", err)
       }
-      if err = f.fetchSpecTicker(ticker.TickerId); err != nil {
+      if err = f.fetchTickerDetailsAndStocks(ticker.TickerId); err != nil {
         return fmt.Errorf("cannot fetch full ticker info: %v", err)
       }
     }
-
+    if cursorURL == "" {
+      break
+    }
     cursor, err := url.Parse(cursorURL)
     if err != nil {
       return fmt.Errorf("cannot parse cursor URL: %s", cursorURL)
@@ -221,29 +231,35 @@ func (f *Fetcher) fetchStocks(tickerId string) error {
     return buildStocksReqURL(tickerId, fromDate, toDate)
   })
 
-  resp, err := f.client.Get(reqURL, nil)
-  if err != nil {
-    return fmt.Errorf("cannot get response")
-  }
-  stockResp := &stocksResponse{}
-
-  if err := f.client.ParseResponse(resp, stockResp); err != nil {
-    return fmt.Errorf("cannot parse reponse: %v", err)
-  }
-
-  if stockResp.QueryCount == 0 {
-    log.Warnf("stock prices not found for ticker: %s", tickerId)
-    return nil
-  }
-
-  for _, stockRes := range stockResp.StockResults {
-    stock, err := createStock(tickerId, stockRes)
+  for {
+    resp, err := f.client.Get(reqURL, nil)
     if err != nil {
-      return fmt.Errorf("cannot create stock: %v", err)
+      return fmt.Errorf("cannot get response")
     }
-    if err = f.storage.PutStock(stock); err != nil {
-      return fmt.Errorf("cannot put stock to storage: %v", err)
+    stockResp := &stocksResponse{}
+
+    if err := f.client.ParseResponse(resp, stockResp); err != nil {
+      return fmt.Errorf("cannot parse reponse: %v", err)
     }
+
+    if stockResp.QueryCount == 0 && stockResp.Count == 0 {
+      log.Warnf("stock prices not found for ticker: %s", tickerId)
+      return nil
+    }
+
+    for _, stockRes := range stockResp.StockResults {
+      stock, err := createStock(tickerId, stockRes)
+      if err != nil {
+        return fmt.Errorf("cannot create stock: %v", err)
+      }
+      if err = f.storage.PutStock(stock); err != nil {
+        return fmt.Errorf("cannot put stock to storage: %v", err)
+      }
+    }
+    if stockResp.NextURL == "" {
+      break
+    }
+    reqURL = stockResp.NextURL
   }
 
   return nil

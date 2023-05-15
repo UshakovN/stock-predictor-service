@@ -76,12 +76,12 @@ func (f *Fetcher) hasRecentlyFetched() bool {
   return thresholdTime.After(time.Now())
 }
 
-func (f *Fetcher) hasSpecTickerId() bool {
+func (f *Fetcher) hasSpecifiedTickerId() bool {
   return f.specTickerId != ""
 }
 
 func (f *Fetcher) ContinuouslyFetch() {
-  if !f.hasSpecTickerId() {
+  if !f.hasSpecifiedTickerId() {
     // if spec ticker id not set
     if err := f.loadFetcherState(); err != nil {
       log.Errorf("state loading from storage failed. : %v", err)
@@ -102,8 +102,8 @@ func (f *Fetcher) ContinuouslyFetch() {
     }
     var err error
 
-    if f.hasSpecTickerId() {
-      err = f.fetchSpecTicker(f.specTickerId)
+    if f.hasSpecifiedTickerId() {
+      err = f.fetchTicker(f.specTickerId)
     } else {
       err = f.fetchTickers()
     }
@@ -122,7 +122,7 @@ func (f *Fetcher) ContinuouslyFetch() {
     tryLeft = fetcherRetryCount
     log.Println("successfully fetching finished")
 
-    if f.hasSpecTickerId() {
+    if f.hasSpecifiedTickerId() {
       return
     }
     f.once.Do(func() {

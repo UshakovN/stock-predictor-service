@@ -161,7 +161,7 @@ func (h *Handler) HandleStocks(w http.ResponseWriter, r *http.Request) error {
 // @Tags Subscriptions
 // @Produce            application/json
 // @Param request body clientservice.SubscribeRequest true "Request"
-// @Success 200 {object} clientservice.SubscribeResponse
+// @Success 201 {object} clientservice.SubscribeResponse
 // @Failure 400,401,403,500 {object} errs.Error
 // @Security ApiKeyAuth
 // @Router /subscribe [post]
@@ -236,7 +236,7 @@ func (h *Handler) HandleUnsubscribe(w http.ResponseWriter, r *http.Request) erro
 // @Description Subscriptions method provide subscriptions models for client with filtration by active subscriptions
 // @Tags Subscriptions
 // @Produce            application/json
-// @Param request body clientservice.SubscriptionsRequest false "Request"
+// @Param request query clientservice.SubscriptionsRequest false "Request"
 // @Success 200 {object} clientservice.SubscriptionsResponse
 // @Failure 400,401,403,500 {object} errs.Error
 // @Security ApiKeyAuth

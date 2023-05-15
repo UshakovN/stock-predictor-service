@@ -3,10 +3,9 @@ package handler
 import (
   "context"
   "fmt"
+  _ "main/docs"
   "net/http"
   "regexp"
-
-  _ "main/docs"
 
   "github.com/UshakovN/stock-predictor-service/errs"
   "github.com/UshakovN/stock-predictor-service/swagger"
@@ -54,15 +53,14 @@ func (h *Handler) BindRouter() {
 
 // HandleServices
 //
-// @Summary Redirect to swagger doc method
-// @Description Redirect method made redirect to swagger documentation url for service
+// @Summary Services method for service names
+// @Description Service method provide names of services support swagger
 // @Tags Documentation
 // @Produce            application/json
-// @Param service query string true "Service Name"
 // @Success 200 {object} ServicesResponse
 // @Failure 400,401,403,500 {object} errs.Error
 // @Security HttpBasicAuth
-// @Router /redirect [get]
+// @Router /services [get]
 //
 func (h *Handler) HandleServices() errs.HandlerErr {
   resp := &ServicesResponse{

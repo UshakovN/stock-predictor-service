@@ -172,8 +172,8 @@ const docTemplate = `{
                     }
                 ],
                 "responses": {
-                    "200": {
-                        "description": "OK",
+                    "201": {
+                        "description": "Created",
                         "schema": {
                             "$ref": "#/definitions/clientservice.SubscribeResponse"
                         }
@@ -222,12 +222,9 @@ const docTemplate = `{
                 "summary": "Subscriptions model method",
                 "parameters": [
                     {
-                        "description": "Request",
-                        "name": "request",
-                        "in": "body",
-                        "schema": {
-                            "$ref": "#/definitions/clientservice.SubscriptionsRequest"
-                        }
+                        "type": "boolean",
+                        "name": "filter_active",
+                        "in": "query"
                     }
                 ],
                 "responses": {
@@ -594,14 +591,6 @@ const docTemplate = `{
                 },
                 "ticker_id": {
                     "type": "string"
-                }
-            }
-        },
-        "clientservice.SubscriptionsRequest": {
-            "type": "object",
-            "properties": {
-                "filter_active": {
-                    "type": "boolean"
                 }
             }
         },

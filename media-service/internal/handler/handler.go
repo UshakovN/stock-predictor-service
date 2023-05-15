@@ -159,7 +159,7 @@ func (h *Handler) HandleGetBatch(w http.ResponseWriter, r *http.Request) error {
 // @Tags Media
 // @Produce            application/json
 // @Param request body mediaservice.PutRequest true "Request"
-// @Success 200 {object} mediaservice.PutResponse
+// @Success 202 {object} mediaservice.PutResponse
 // @Failure 400,401,403,500 {object} errs.Error
 // @Security ApiKeyAuth
 // @Router /put-queue [post]

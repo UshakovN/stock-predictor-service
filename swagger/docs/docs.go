@@ -90,6 +90,55 @@ const docTemplate = `{
                     }
                 }
             }
+        },
+        "/services": {
+            "get": {
+                "security": [
+                    {
+                        "HttpBasicAuth": []
+                    }
+                ],
+                "description": "Service method provide names of services support swagger",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Documentation"
+                ],
+                "summary": "Services method for service names",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/internal_handler.ServicesResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/errs.Error"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/errs.Error"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/errs.Error"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/errs.Error"
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {
