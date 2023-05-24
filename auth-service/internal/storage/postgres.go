@@ -4,17 +4,11 @@ import (
   "context"
   "fmt"
   "sync"
-  "time"
 
   sq "github.com/Masterminds/squirrel"
   "github.com/UshakovN/stock-predictor-service/postgres"
   "github.com/jackc/pgx/v4"
   log "github.com/sirupsen/logrus"
-)
-
-const (
-  txRetryCount   = 5
-  txWaitInterval = 1 * time.Second
 )
 
 type queryBuilder interface {
