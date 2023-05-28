@@ -276,7 +276,7 @@ func (h *Handler) HandleSubscriptions(w http.ResponseWriter, r *http.Request) er
 // @Tags Subscriptions
 // @Produce application/json
 // @Success 200 {object} clientservice.PredictsResponse
-// @Failure 400,401,403,500 {object} errs.Error
+// @Failure 400,401,403,404,500 {object} errs.Error
 // @Security ApiKeyAuth
 // @Router /predictions [get]
 //

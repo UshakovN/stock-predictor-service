@@ -19,7 +19,7 @@
         }
       }
     },
-    "index.max_ngram_diff" : 10
+    "index.max_ngram_diff": 10
   },
   "mappings": {
     "properties": {
