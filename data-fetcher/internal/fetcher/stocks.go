@@ -1,71 +1,17 @@
-package polygon
+package fetcher
 
 import (
-  "context"
   "fmt"
   "main/internal/domain"
-  "main/internal/fetcher"
-  "main/internal/queue"
-  "main/internal/storage"
   "net/url"
-  "sync"
   "time"
 
-  "github.com/UshakovN/stock-predictor-service/httpclient"
   "github.com/UshakovN/stock-predictor-service/utils"
   log "github.com/sirupsen/logrus"
 )
 
-type Fetcher struct {
-  ctx          context.Context
-  client       httpclient.HttpClient
-  storage      storage.Storage
-  msQueue      queue.MediaServiceQueue
-  state        *state
-  once         *sync.Once
-  specTickerId string
-}
-
-func NewFetcher(ctx context.Context, config *Config) (fetcher.Fetcher, error) {
-  client := httpclient.NewClient(
-    httpclient.WithContext(ctx),
-    httpclient.WithQueryApiToken(
-      apiTokenKey,
-      config.ApiToken,
-    ),
-    httpclient.WithRequestsLimit(
-      polygonReqsLimit,
-      polygonReqPerDur,
-      polygonWaitDur,
-      polygonDeadlineDur,
-    ))
-
-  fetcherState := newFetcherState(
-    config.ModeTotalHours,
-    config.ModeCurrentHours,
-  )
-
-  fetcherStorage, err := storage.NewStorage(ctx, config.StorageConfig)
-  if err != nil {
-    return nil, err
-  }
-  msQueue, err := queue.NewMediaServiceQueue(ctx, config.QueueConfig)
-  if err != nil {
-    return nil, err
-  }
-
-  return &Fetcher{
-    ctx:     ctx,
-    client:  client,
-    storage: fetcherStorage,
-    msQueue: msQueue,
-    state:   fetcherState,
-    once:    &sync.Once{},
-  }, nil
-}
-
-func (f *Fetcher) getTickersResponse(query string) (*tickersResponse, error) {
-  reqURL := getReqUrlFromStateOrNew(f.state.ticker, func() string {
+func (f *fetcher) getTickersResponse(query string) (*tickersResponse, error) {
+  reqURL := buildRequestURL(f.state.ticker, func() string {
     return fmt.Sprint(basePrefixApi, tickersApi, "?", query)
   })
 
@@ -83,15 +29,17 @@ func (f *Fetcher) getTickersResponse(query string) (*tickersResponse, error) {
 
 func buildTickersQuery(tickerId string) url.Values {
   query := url.Values{}
+
   query.Add("active", "true")
   query.Add("order", "asc")
+
   if tickerId != "" {
     query.Add("ticker", tickerId)
   }
   return query
 }
 
-func (f *Fetcher) fetchTickerDetails(tickerId string) (*domain.TickerDetails, error) {
+func (f *fetcher) fetchTickerDetails(tickerId string) (*domain.TickerDetails, error) {
   resp, err := f.getTickerDetailsResponse(tickerId)
   if err != nil {
     return nil, fmt.Errorf("cannot get ticker details response: %v", err)
@@ -114,8 +62,8 @@ func (f *Fetcher) fetchTickerDetails(tickerId string) (*domain.TickerDetails, er
   return details, nil
 }
 
-func (f *Fetcher) getTickerDetailsResponse(tickerId string) (*tickerDetailsResponse, error) {
-  reqURL := getReqUrlFromStateOrNew(f.state.tickerDetails, func() string {
+func (f *fetcher) getTickerDetailsResponse(tickerId string) (*tickerDetailsResponse, error) {
+  reqURL := buildRequestURL(f.state.tickerDetails, func() string {
     tickerDetailsQuery := fmt.Sprintf(tickerDetailsApi, tickerId)
     return fmt.Sprint(basePrefixApi, tickerDetailsQuery)
   })
@@ -132,7 +80,7 @@ func (f *Fetcher) getTickerDetailsResponse(tickerId string) (*tickerDetailsRespo
   return tickerDetailsResp, nil
 }
 
-func (f *Fetcher) fetchTickerDetailsAndStocks(tickerId string) error {
+func (f *fetcher) fetchTickerDetailsAndStocks(tickerId string) error {
   tickerDetails, err := f.fetchTickerDetails(tickerId)
   if err != nil {
     return fmt.Errorf("cannot fetch ticker details for ticker '%s': %v", tickerId, err)
@@ -140,19 +88,44 @@ func (f *Fetcher) fetchTickerDetailsAndStocks(tickerId string) error {
   if err = f.storage.PutTickerDetails(tickerDetails); err != nil {
     return fmt.Errorf("cannot put ticker details for ticker '%s' to storage: %v", tickerId, err)
   }
-  if err = f.fetchStocks(tickerId); err != nil {
+  if err = f.fetchStocks(&fetchStocksOption{
+    TickerId: tickerId,
+  }); err != nil {
     return fmt.Errorf("cannot fetch stocks for ticker '%s': %v", tickerId, err)
   }
   return nil
 }
 
-func (f *Fetcher) fetchTickers() error {
-  // if ticker id not specified will be fetched all tickers
-  return f.fetchTicker("")
+func (f *fetcher) FetchInfo() error { // fetch tickers with details and their stocks
+  var err error
+  // first we must fetch stocks for stored tickers
+  if err = f.fetchStocksForStoredTickers(); err != nil {
+    return fmt.Errorf("cannot fetch stocks for stored tickers: %v", err)
+  }
+  if err = f.fetchTickers(&fetchTickersOption{
+    TickerId: f.tickerId, // if ticker id not specified will be fetched all tickers
+  }); err != nil {
+    return fmt.Errorf("cannot fetch new tickers: %v", err)
+  }
+  return nil
 }
 
-func (f *Fetcher) fetchTicker(tickerId string) error {
-  query := buildTickersQuery(tickerId)
+type fetchTickersOption struct {
+  TickerId string
+}
+
+func (o *fetchTickersOption) Validate() error {
+  if o.TickerId == "" {
+    log.Warnf("ticker id not specified in fetch tickers option. will be fetched all tickers")
+  }
+  return nil
+}
+
+func (f *fetcher) fetchTickers(options *fetchTickersOption) error {
+  if err := options.Validate(); err != nil {
+    return fmt.Errorf("fetch ticker option validation failed: %v", err)
+  }
+  query := buildTickersQuery(options.TickerId)
 
   for {
     queryStr := query.Encode()
@@ -201,7 +174,25 @@ func (f *Fetcher) fetchTicker(tickerId string) error {
   return nil
 }
 
-func (f *Fetcher) getStockDateRange() (string, string) {
+func (f *fetcher) fetchStocksForStoredTickers() error {
+  tickers, err := f.storage.GetTickers()
+  if err != nil {
+    return fmt.Errorf("cannot get ticker from storage: %v", err)
+  }
+  for _, ticker := range tickers {
+    if err = f.fetchStocks(&fetchStocksOption{
+      TickerId:           ticker.TickerId,
+      NotUseRequestState: true,
+    }); err != nil {
+      return fmt.Errorf("cannot fetch stocks for stored ticker '%s': %v", ticker.TickerId, err)
+    }
+  }
+  log.Infof("stocks successfully fetched for '%d' stored tickers", len(tickers))
+
+  return nil
+}
+
+func (f *fetcher) buildStocksReqURL(tickerId string) string {
   nowT := time.Now()
   fromT := nowT
   toT := nowT
@@ -214,22 +205,39 @@ func (f *Fetcher) getStockDateRange() (string, string) {
   from := fromT.Add(-dur).Format("2006-01-02")
   to := toT.Format("2006-01-02")
 
-  return from, to
-}
-
-func buildStocksReqURL(tickerName, fromDate, toDate string) string {
   multiplier := 1
   timespan := "day"
-  rangeQuery := fmt.Sprintf(stocksApi, tickerName, multiplier, timespan, fromDate, toDate)
+
+  rangeQuery := fmt.Sprintf(stocksApi, tickerId, multiplier, timespan, from, to)
   reqURL := fmt.Sprint(basePrefixApi, rangeQuery)
   return reqURL
 }
 
-func (f *Fetcher) fetchStocks(tickerId string) error {
-  reqURL := getReqUrlFromStateOrNew(f.state.stocks, func() string {
-    fromDate, toDate := f.getStockDateRange()
-    return buildStocksReqURL(tickerId, fromDate, toDate)
-  })
+type fetchStocksOption struct {
+  TickerId           string
+  NotUseRequestState bool
+}
+
+func (o *fetchStocksOption) Validate() error {
+  if o.TickerId == "" {
+    return fmt.Errorf("ticker id must be specified")
+  }
+  return nil
+}
+
+func (f *fetcher) fetchStocks(option *fetchStocksOption) error {
+  if err := option.Validate(); err != nil {
+    return fmt.Errorf("fetch stocks option validation failed: %v", err)
+  }
+  var reqURL string
+
+  if option.NotUseRequestState {
+    reqURL = f.buildStocksReqURL(option.TickerId)
+  } else {
+    reqURL = buildRequestURL(f.state.stocks, func() string {
+      return f.buildStocksReqURL(option.TickerId)
+    })
+  }
 
   for {
     resp, err := f.client.Get(reqURL, nil)
@@ -243,12 +251,12 @@ func (f *Fetcher) fetchStocks(tickerId string) error {
     }
 
     if stockResp.QueryCount == 0 && stockResp.Count == 0 {
-      log.Warnf("stock prices not found for ticker: %s", tickerId)
+      log.Warnf("stock prices not found for ticker: %s", option.TickerId)
       return nil
     }
 
     for _, stockRes := range stockResp.StockResults {
-      stock, err := createStock(tickerId, stockRes)
+      stock, err := createStock(option.TickerId, stockRes)
       if err != nil {
         return fmt.Errorf("cannot create stock: %v", err)
       }
@@ -331,18 +339,18 @@ func createStock(tickerId string, res *stockResult) (*domain.Stock, error) {
   return stock, nil
 }
 
-func getReqUrlFromStateOrNew(stateReq *stateReq, newReqURL func() string) string {
+func buildRequestURL(stateRequest *stateRequest, builder func() string) string {
   var reqURL string
   // if request URL not used and set in state
-  if !stateReq.used && stateReq.reqURL != "" {
-    reqURL = stateReq.reqURL
+  if !stateRequest.used && stateRequest.requestURL != "" {
+    reqURL = stateRequest.requestURL
     // use it once
-    stateReq.used = true
+    stateRequest.used = true
   } else {
     // else form new request URL
-    reqURL = newReqURL()
+    reqURL = builder()
     // save it in state
-    stateReq.reqURL = reqURL
+    stateRequest.requestURL = reqURL
   }
   return reqURL
 }

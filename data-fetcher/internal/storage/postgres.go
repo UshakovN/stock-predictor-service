@@ -25,6 +25,7 @@ type Storage interface {
   PutStock(stock *domain.Stock) error
   PutFetcherState(state *domain.FetcherState) error
   GetFetcherState() (*domain.FetcherState, bool, error)
+  GetTickers() ([]*domain.Ticker, error)
 }
 
 type storage struct {
@@ -235,15 +236,21 @@ func (s *storage) GetFetcherState() (*domain.FetcherState, bool, error) {
     PlaceholderFormat(sq.Dollar)
 
   state := &domain.FetcherState{}
-  found, err := s.doGetQuery(builder,
-    &state.StateId,
-    &state.TickerReqUrl,
-    &state.TickerDetailsReqUrl,
-    &state.StockReqUrl,
-    &state.CreatedAt,
-    &state.Finished,
+  var (
+    found bool
+    err   error
   )
-  if err != nil {
+  if err = s.doGetQuery(builder, func(rows pgx.Rows) error {
+    found, err = scanFirstQueriedRow(rows,
+      &state.StateId,
+      &state.TickerReqUrl,
+      &state.TickerDetailsReqUrl,
+      &state.StockReqUrl,
+      &state.CreatedAt,
+      &state.Finished,
+    )
+    return err
+  }); err != nil {
     return nil, false, err
   }
   if !found {
@@ -255,16 +262,64 @@ func (s *storage) GetFetcherState() (*domain.FetcherState, bool, error) {
   return state, true, nil
 }
 
-func (s *storage) doGetQuery(builder queryBuilder, fields ...any) (bool, error) {
+func (s *storage) GetTickers() ([]*domain.Ticker, error) {
+  builder := sq.Select(
+    `ticker_id`,
+    `company_name`,
+    `company_locale`,
+    `currency_name`,
+    `ticker_cik`,
+    `active`,
+    `created_at`,
+    `external_updated_at`,
+  ).
+    From(`ticker`).
+    PlaceholderFormat(sq.Dollar)
+
+  var (
+    tickers []*domain.Ticker
+    found   bool
+    err     error
+  )
+  if err = s.doGetQuery(builder, func(rows pgx.Rows) error {
+    for {
+      ticker := &domain.Ticker{}
+
+      if found, err = scanQueriedRow(rows,
+        &ticker.TickerId,
+        &ticker.CompanyName,
+        &ticker.CompanyLocale,
+        &ticker.CurrencyName,
+        &ticker.TickerCik,
+        &ticker.Active,
+        &ticker.CreatedAt,
+        &ticker.ExternalUpdatedAt,
+      ); err != nil {
+        return err
+      }
+      if !found {
+        break
+      }
+      tickers = append(tickers, ticker)
+    }
+    return nil
+
+  }); err != nil {
+    return nil, err
+  }
+  return tickers, nil
+}
+
+func (s *storage) doGetQuery(builder queryBuilder, handler func(rows pgx.Rows) error) error {
   query, args := mustBuildQuery(builder)
   rows, err := s.client.Query(s.ctx, query, args...)
   if err != nil {
-    return false, fmt.Errorf("cannot do query: %v", err)
+    return fmt.Errorf("cannot do query: %v", err)
   }
-  return scanFirstQueriedRow(rows, fields)
+  return handler(rows)
 }
 
-func scanFirstQueriedRow(rows pgx.Rows, fields []any) (bool, error) {
+func scanFirstQueriedRow(rows pgx.Rows, fields ...any) (bool, error) {
   var (
     hasRows bool
     err     error
@@ -277,4 +332,15 @@ func scanFirstQueriedRow(rows pgx.Rows, fields []any) (bool, error) {
     })
   }
   return hasRows, err
+}
+
+func scanQueriedRow(rows pgx.Rows, fields ...any) (bool, error) {
+  var hasRow bool
+  if rows.Next() {
+    if err := rows.Scan(fields...); err != nil {
+      return false, fmt.Errorf("cannot scan queried row: %v", err)
+    }
+    hasRow = true
+  }
+  return hasRow, nil
 }

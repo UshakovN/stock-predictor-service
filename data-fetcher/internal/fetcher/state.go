@@ -1,13 +1,72 @@
-package polygon
+package fetcher
 
 import (
+  "context"
   "fmt"
   "main/internal/domain"
+  "main/internal/queue"
+  "main/internal/storage"
+  "sync"
   "time"
 
+  "github.com/UshakovN/stock-predictor-service/httpclient"
   "github.com/UshakovN/stock-predictor-service/utils"
   log "github.com/sirupsen/logrus"
 )
+
+type Fetcher interface {
+  ContinuouslyFetch()
+  SaveFetcherState()
+  SetTickerId(tickerId string)
+}
+
+type fetcher struct {
+  ctx      context.Context
+  client   httpclient.HttpClient
+  storage  storage.Storage
+  msQueue  queue.MediaServiceQueue
+  state    *state
+  once     *sync.Once
+  tickerId string
+}
+
+func NewFetcher(ctx context.Context, config *Config) (Fetcher, error) {
+  client := httpclient.NewClient(
+    httpclient.WithContext(ctx),
+    httpclient.WithQueryApiToken(
+      apiTokenKey,
+      config.ApiToken,
+    ),
+    httpclient.WithRequestsLimit(
+      polygonReqsLimit,
+      polygonReqPerDur,
+      polygonWaitDur,
+      polygonDeadlineDur,
+    ))
+
+  fetcherState := newFetcherState(
+    config.ModeTotalHours,
+    config.ModeCurrentHours,
+  )
+
+  fetcherStorage, err := storage.NewStorage(ctx, config.StorageConfig)
+  if err != nil {
+    return nil, err
+  }
+  msQueue, err := queue.NewMediaServiceQueue(ctx, config.QueueConfig)
+  if err != nil {
+    return nil, err
+  }
+
+  return &fetcher{
+    ctx:     ctx,
+    client:  client,
+    storage: fetcherStorage,
+    msQueue: msQueue,
+    state:   fetcherState,
+    once:    &sync.Once{},
+  }, nil
+}
 
 type state struct {
   finished         bool
@@ -15,14 +74,14 @@ type state struct {
   modeCode         int
   modeTotalHours   int
   modeCurrentHours int
-  ticker           *stateReq
-  tickerDetails    *stateReq
-  stocks           *stateReq
+  ticker           *stateRequest
+  tickerDetails    *stateRequest
+  stocks           *stateRequest
 }
 
-type stateReq struct {
-  reqURL string
-  used   bool
+type stateRequest struct {
+  requestURL string
+  used       bool
 }
 
 func newFetcherState(modeTotalHours, modeCurrentHours int) *state {
@@ -30,9 +89,9 @@ func newFetcherState(modeTotalHours, modeCurrentHours int) *state {
     modeCode:         fetcherModeTotal,
     modeTotalHours:   modeTotalHours,
     modeCurrentHours: modeCurrentHours,
-    ticker:           &stateReq{},
-    tickerDetails:    &stateReq{},
-    stocks:           &stateReq{},
+    ticker:           &stateRequest{},
+    tickerDetails:    &stateRequest{},
+    stocks:           &stateRequest{},
   }
 }
 
@@ -59,15 +118,15 @@ func (s *state) SetModeCode(mode int) {
     mode, fetcherModeTotal, fetcherModeCurrent)
 }
 
-func (f *Fetcher) SetTickerId(tickerId string) {
+func (f *fetcher) SetTickerId(tickerId string) {
   if tickerId == "" {
     log.Warnf("ticker id is empty. ticker id do not set")
     return
   }
-  f.specTickerId = tickerId
+  f.tickerId = tickerId
 }
 
-func (f *Fetcher) hasRecentlyFetched() bool {
+func (f *fetcher) hasRecentlyFetched() bool {
   if !f.state.finished || f.state.updatedAt == nil {
     return false
   }
@@ -76,15 +135,11 @@ func (f *Fetcher) hasRecentlyFetched() bool {
   return thresholdTime.After(time.Now())
 }
 
-func (f *Fetcher) hasSpecifiedTickerId() bool {
-  return f.specTickerId != ""
-}
-
-func (f *Fetcher) ContinuouslyFetch() {
-  if !f.hasSpecifiedTickerId() {
-    // if spec ticker id not set
+func (f *fetcher) ContinuouslyFetch() {
+  if f.tickerId == "" {
+    // if not specified ticker id
     if err := f.loadFetcherState(); err != nil {
-      log.Errorf("state loading from storage failed. : %v", err)
+      log.Errorf("state loading from storage failed: %v", err)
     }
   }
   f.state.SetModeCode(fetcherModeTotal)
@@ -100,14 +155,7 @@ func (f *Fetcher) ContinuouslyFetch() {
       f.state.ResetFinished() // reset finished field
       continue
     }
-    var err error
-
-    if f.hasSpecifiedTickerId() {
-      err = f.fetchTicker(f.specTickerId)
-    } else {
-      err = f.fetchTickers()
-    }
-    if err != nil {
+    if err := f.FetchInfo(); err != nil {
       log.Errorf("fetching error: %v. wait %v before the next fetch",
         err, encounteredErrorSleepInterval)
 
@@ -122,7 +170,7 @@ func (f *Fetcher) ContinuouslyFetch() {
     tryLeft = fetcherRetryCount
     log.Println("successfully fetching finished")
 
-    if f.hasSpecifiedTickerId() {
+    if f.tickerId != "" {
       return
     }
     f.once.Do(func() {
@@ -132,13 +180,13 @@ func (f *Fetcher) ContinuouslyFetch() {
   log.Fatalf("fetching failed and stopped")
 }
 
-func (f *Fetcher) SaveFetcherState() {
+func (f *fetcher) SaveFetcherState() {
   if err := f.storage.PutFetcherState(createFetcherState(f.state)); err != nil {
     log.Fatalf("cannot put fetcher state to storage: %v", err)
   }
 }
 
-func (f *Fetcher) loadFetcherState() error {
+func (f *fetcher) loadFetcherState() error {
   state, found, err := f.storage.GetFetcherState()
   if err != nil {
     return fmt.Errorf("cannot get fetcher state from storage: %v", err)
@@ -147,9 +195,9 @@ func (f *Fetcher) loadFetcherState() error {
     return nil
   }
   // set fields from storage state
-  f.state.ticker.reqURL = utils.StripString(state.TickerReqUrl)
-  f.state.tickerDetails.reqURL = utils.StripString(state.TickerDetailsReqUrl)
-  f.state.stocks.reqURL = utils.StripString(state.StockReqUrl)
+  f.state.ticker.requestURL = utils.StripString(state.TickerReqUrl)
+  f.state.tickerDetails.requestURL = utils.StripString(state.TickerDetailsReqUrl)
+  f.state.stocks.requestURL = utils.StripString(state.StockReqUrl)
   f.state.updatedAt = &state.CreatedAt
   f.state.finished = state.Finished
 
@@ -161,9 +209,9 @@ func createFetcherState(state *state) *domain.FetcherState {
     return nil
   }
   return &domain.FetcherState{
-    TickerReqUrl:        utils.StripString(state.ticker.reqURL),
-    TickerDetailsReqUrl: utils.StripString(state.tickerDetails.reqURL),
-    StockReqUrl:         utils.StripString(state.stocks.reqURL),
+    TickerReqUrl:        utils.StripString(state.ticker.requestURL),
+    TickerDetailsReqUrl: utils.StripString(state.tickerDetails.requestURL),
+    StockReqUrl:         utils.StripString(state.stocks.requestURL),
     CreatedAt:           utils.NotTimeUTC(),
   }
 }

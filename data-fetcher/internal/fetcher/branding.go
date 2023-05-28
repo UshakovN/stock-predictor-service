@@ -1,4 +1,4 @@
-package polygon
+package fetcher
 
 import (
   "fmt"
@@ -8,7 +8,7 @@ import (
   "github.com/UshakovN/stock-predictor-service/utils"
 )
 
-func (f *Fetcher) formMsgForBrandingImage(tickerId, imageURL, brandingType string) (*domain.PutMessage, error) {
+func (f *fetcher) formMsgForBrandingImage(tickerId, imageURL, brandingType string) (*domain.PutMessage, error) {
   const (
     sectionName = "polygon_references"
     nameDashSep = "-"
@@ -39,7 +39,7 @@ func (f *Fetcher) formMsgForBrandingImage(tickerId, imageURL, brandingType strin
   }, nil
 }
 
-func (f *Fetcher) sendMessagesToPutTickerBranding(tickerId string, branding *tickerDetailsBranding) error {
+func (f *fetcher) sendMessagesToPutTickerBranding(tickerId string, branding *tickerDetailsBranding) error {
   const (
     brandingTypeIcon = "icon"
     brandingTypeLogo = "logo"

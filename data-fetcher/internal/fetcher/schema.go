@@ -1,4 +1,4 @@
-package polygon
+package fetcher
 
 import "time"
 

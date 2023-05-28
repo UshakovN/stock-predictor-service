@@ -3,7 +3,7 @@ package main
 import (
   "context"
   "flag"
-  "main/internal/fetcher/polygon"
+  "main/internal/fetcher"
   "net/http"
   "os"
   "os/signal"
@@ -30,17 +30,17 @@ func main() {
   tickerId := flag.String("ticker", "", "specified ticker id for fetching")
   flag.Parse()
 
-  cfg := polygon.NewConfig()
+  cfg := fetcher.NewConfig()
   if err := config.Parse(*configPath, cfg); err != nil {
     log.Fatalf("cannot parse fetcher config: %v", err)
   }
 
-  fetcher, err := polygon.NewFetcher(ctx, cfg)
+  f, err := fetcher.NewFetcher(ctx, cfg)
   if err != nil {
     log.Fatalf("cannot create new fetcher: %v", err)
   }
   if *tickerId != "" {
-    fetcher.SetTickerId(*tickerId)
+    f.SetTickerId(*tickerId)
   }
 
   http.Handle("/health", HandleHealthWrapper())
@@ -48,8 +48,8 @@ func main() {
   go utils.ContinuouslyServe(*servePort)
   log.Infof("ready for serve http on port: %s", *servePort)
 
-  go fetcher.ContinuouslyFetch()
-  defer fetcher.SaveFetcherState()
+  go f.ContinuouslyFetch()
+  defer f.SaveFetcherState()
 
   serviceShutdown()
 }
