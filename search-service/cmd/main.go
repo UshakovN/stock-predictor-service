@@ -45,7 +45,7 @@ func main() {
   go h.ContinuouslyServeHttp(*servePort)
   log.Infof("ready for serve http on port: %s", *servePort)
 
-  go h.UpdateSuggestScheduled()
+  go h.UpdateElasticScheduled()
 
   serviceShutdown()
 }

@@ -21,20 +21,20 @@ import (
 )
 
 type Handler struct {
-  ctx                   context.Context
-  serviceClient         clientservice.Client
-  elasticClient         es.Client[*searchservice.Info]
-  authClient            authservice.Client
-  elasticIndexName      string
-  suggestUpdateDuration time.Duration
-  swagger               *swagger.Handler
+  ctx                        context.Context
+  serviceClient              clientservice.Client
+  elasticClient              es.Client[*searchservice.Info]
+  authClient                 authservice.Client
+  elasticIndexName           string
+  elasticIndexUpdateDuration time.Duration
+  swagger                    *swagger.Handler
 }
 
 func NewHandler(ctx context.Context, config *Config) (*Handler, error) {
-  if config.SuggestUpdateHours <= 0 {
-    return nil, fmt.Errorf("suggest update hours must be positive integer")
+  if config.ElasticIndexUpdateHours <= 0 {
+    return nil, fmt.Errorf("es index update hours must be positive integer")
   }
-  suggestUpdateDuration := time.Duration(config.SuggestUpdateHours) * time.Hour
+  elasticIndexUpdateDuration := time.Duration(config.ElasticIndexUpdateHours) * time.Hour
 
   serviceClient := clientservice.NewClient(ctx, config.ClientServicePrefix, config.ClientServiceApiToken)
 
@@ -46,16 +46,16 @@ func NewHandler(ctx context.Context, config *Config) (*Handler, error) {
   }
   authClient := authservice.NewClient(ctx,
     config.AuthServicePrefix,
-    config.SuggestApiToken,
+    config.SearchServiceApiToken,
   )
   return &Handler{
-    ctx:                   ctx,
-    serviceClient:         serviceClient,
-    elasticClient:         elasticClient,
-    authClient:            authClient,
-    elasticIndexName:      config.ElasticIndexName,
-    suggestUpdateDuration: suggestUpdateDuration,
-    swagger:               swagger.NewHandler(config.SwaggerConfig),
+    ctx:                        ctx,
+    serviceClient:              serviceClient,
+    elasticClient:              elasticClient,
+    authClient:                 authClient,
+    elasticIndexName:           config.ElasticIndexName,
+    elasticIndexUpdateDuration: elasticIndexUpdateDuration,
+    swagger:                    swagger.NewHandler(config.SwaggerConfig),
   }, nil
 }
 
@@ -256,7 +256,7 @@ func (h *Handler) formSearchOptions(req *searchservice.ResourceRequest) *es.Sear
   }
 }
 
-func (h *Handler) UpdateSuggestScheduled() {
+func (h *Handler) UpdateElasticScheduled() {
   const (
     startTimer = 0
     timeFormat = "2006-01-02 15:04:05"
@@ -265,22 +265,22 @@ func (h *Handler) UpdateSuggestScheduled() {
   defer timer.Stop()
 
   for timerTime := range timer.C {
-    log.Infof("start scheduled update suggest: %s", timerTime.UTC().Format(timeFormat))
-    if err := h.updateSuggest(); err != nil {
-      log.Errorf("suggest update failed: %v", err)
+    log.Infof("start scheduled update elasticsearch index: %s", timerTime.UTC().Format(timeFormat))
+    if err := h.updateElasticsearchIndex(); err != nil {
+      log.Errorf("update elasticsearch index failed: %v", err)
       return
     }
-    log.Infof("scheduled suggest update success: %s", utils.NotTimeUTC().Format(timeFormat))
-    timer.Reset(h.suggestUpdateDuration)
+    log.Infof("scheduled update elasticsearch index success: %s", utils.NotTimeUTC().Format(timeFormat))
+    timer.Reset(h.elasticIndexUpdateDuration)
   }
 }
 
-func (h *Handler) updateSuggest() error {
+func (h *Handler) updateElasticsearchIndex() error {
   resp, err := h.serviceClient.GetTickers(&clientservice.TickersRequest{})
   if err != nil {
     return fmt.Errorf("client service cannot get tickers: %v", err)
   }
-  log.Infof("client service return %d tickers for suggest", resp.Count)
+  log.Infof("client service return %d tickers for es index", resp.Count)
 
   var createdDocs int
   const createdCountForLog = 25
@@ -308,7 +308,7 @@ func (h *Handler) updateSuggest() error {
   return nil
 }
 
-func (h *Handler) createElasticIndexForSuggest(jsonConfigPath string) error {
+func (h *Handler) createElasticIndexWithConfig(jsonConfigPath string) error {
   if jsonConfigPath == "" {
     return fmt.Errorf("json config path not specified")
   }
