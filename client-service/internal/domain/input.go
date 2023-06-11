@@ -138,3 +138,8 @@ func (w *WithFields) HasMedia() bool {
   }
   return w.Media
 }
+
+type CalculatePagesInput struct {
+  Resource string
+  PageSize int
+}

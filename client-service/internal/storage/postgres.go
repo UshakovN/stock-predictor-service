@@ -17,6 +17,7 @@ import (
 var ErrNotFoundInStorage = errors.New("not found in storage")
 
 type Storage interface {
+  CalculatePages(resource Resource, pageSize int) (int, error)
   GetTickers(option *GetOption) ([]*Ticker, error)
   GetStocks(option *GetOption) ([]*Stock, error)
   UpdateSubscription(sub *Subscription) error
@@ -324,7 +325,7 @@ func (s *storage) getPredicts(userId string, datePredict time.Time) ([]*Predict,
     from stock_predict
         inner join subscription on stock_predict.ticker_id = subscription.ticker_id
     where
-        subscription.user_id = $1 and date_predict = $2`)
+        subscription.active = true and subscription.user_id = $1 and date_predict = $2`)
 
   queriedRows, err := s.doRawQuery(query, userId, datePredict)
   if err != nil {
@@ -392,6 +393,22 @@ func (s *storage) getModelInfo(modelId string) (*ModelInfo, error) {
     return nil, fmt.Errorf("model info with id '%s' not found in storage", modelId)
   }
   return modelInfo, nil
+}
+
+func (s *storage) CalculatePages(resource Resource, pageSize int) (int, error) {
+  query := sanitizeQuery(fmt.Sprintf(`select ceil(count(*) :: double precision / %d) from %s`,
+    pageSize, resource))
+
+  queriedRows, err := s.doRawQuery(query)
+  if err != nil {
+    return 0, fmt.Errorf("cannot do query: %v", err)
+  }
+  var pagesCount int
+  
+  if _, err := scanFirstQueriedRow(queriedRows, &pagesCount); err != nil {
+    return 0, err
+  }
+  return pagesCount, nil
 }
 
 func (s *storage) doRawQuery(query string, args ...any) (pgx.Rows, error) {

@@ -29,8 +29,10 @@ type Handler struct {
 }
 
 func (h *Handler) BindRouter() {
+  http.Handle("/tickers/pages", errs.MiddlewareErr(h.auth.AuthMiddleware(h.HandleTickersPages)))
   http.Handle("/tickers", errs.MiddlewareErr(h.auth.AuthMiddleware(h.HandleTickers)))
   http.Handle("/stocks", errs.MiddlewareErr(h.auth.AuthMiddleware(h.HandleStocks)))
+  http.Handle("/stocks/pages", errs.MiddlewareErr(h.auth.AuthMiddleware(h.HandleStocksPages)))
   http.Handle("/subscribe", errs.MiddlewareErr(h.auth.AuthMiddleware(h.HandleSubscribe)))
   http.Handle("/unsubscribe", errs.MiddlewareErr(h.auth.AuthMiddleware(h.HandleUnsubscribe)))
   http.Handle("/subscriptions", errs.MiddlewareErr(h.auth.AuthMiddleware(h.HandleSubscriptions)))
@@ -62,6 +64,22 @@ func NewHandler(ctx context.Context, config *Config) (*Handler, error) {
     auth:    authClient,
     swagger: swagger.NewHandler(config.SwaggerConfig),
   }, nil
+}
+
+// HandleTickersPages
+//
+// @Summary Tickers pages method
+// @Description Tickers pages method calculate total tickers pages count for specified page size
+// @Tags Resources
+// @Produce            application/json
+// @Param request query clientservice.PagesRequest true "Request"
+// @Success 200 {object} clientservice.PagesResponse
+// @Failure 400,401,403,500 {object} errs.Error
+// @Security ApiKeyAuth
+// @Router /tickers/pages [get]
+//
+func (h *Handler) HandleTickersPages(w http.ResponseWriter, r *http.Request) error {
+  return h.handleCalculatePages(service.CalculatePagesResourceTicker)(w, r)
 }
 
 // HandleTickers
@@ -107,6 +125,22 @@ func (h *Handler) HandleTickers(w http.ResponseWriter, r *http.Request) error {
     return err
   }
   return nil
+}
+
+// HandleStocksPages
+//
+// @Summary Stocks pages method
+// @Description Stocks pages method calculate total stocks pages count for specified page size
+// @Tags Resources
+// @Produce            application/json
+// @Param request query clientservice.PagesRequest true "Request"
+// @Success 200 {object} clientservice.PagesResponse
+// @Failure 400,401,403,500 {object} errs.Error
+// @Security ApiKeyAuth
+// @Router /stocks/pages [get]
+//
+func (h *Handler) HandleStocksPages(w http.ResponseWriter, r *http.Request) error {
+  return h.handleCalculatePages(service.CalculatePagesResourceStock)(w, r)
 }
 
 // HandleStocks
@@ -328,6 +362,33 @@ func (h *Handler) ContinuouslyServeHttp(port string) {
   err := http.ListenAndServe(fmt.Sprint(":", port), nil)
   if err != nil {
     log.Fatalf("listen and serve error: %v", err)
+  }
+}
+
+func (h *Handler) handleCalculatePages(resource string) func(w http.ResponseWriter, r *http.Request) error {
+  return func(w http.ResponseWriter, r *http.Request) error {
+    req := &clientservice.PagesRequest{}
+
+    if err := utils.ReadRequest(r, req); err != nil {
+      return err
+    }
+    if err := req.Validate(); err != nil {
+      return err
+    }
+    pagesCount, err := h.service.CalculatePages(&domain.CalculatePagesInput{
+      Resource: resource,
+      PageSize: req.PageSize,
+    })
+    if err != nil {
+      return err
+    }
+    if err = utils.WriteResponse(w, &clientservice.PagesResponse{
+      Success:    true,
+      TotalCount: pagesCount,
+    }, http.StatusOK); err != nil {
+      return err
+    }
+    return nil
   }
 }
 

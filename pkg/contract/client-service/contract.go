@@ -199,3 +199,24 @@ type PredictsResponse struct {
   ModelInfo *ModelInfo `json:"model_info"`
   Parts     []*Predict `json:"parts"`
 }
+
+type PagesRequest struct {
+  PageSize int `json:"page_size"`
+}
+
+type PagesResponse struct {
+  Success    bool `json:"success"`
+  TotalCount int  `json:"total_count"`
+}
+
+func (r *PagesRequest) Validate() error {
+  if r.PageSize == 0 {
+    return errs.NewErrorWithMessage(errs.ErrTypeMalformedRequest,
+      "page_size must be specified", nil)
+  }
+  if r.PageSize < 0 {
+    return errs.NewErrorWithMessage(errs.ErrTypeMalformedRequest,
+      "page_size must be positive", nil)
+  }
+  return nil
+}

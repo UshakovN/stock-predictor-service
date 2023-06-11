@@ -5,6 +5,7 @@ import (
   "fmt"
   "main/internal/domain"
   "main/internal/storage"
+  "time"
 
   mediaservice "github.com/UshakovN/stock-predictor-service/contract/media-service"
   "github.com/UshakovN/stock-predictor-service/errs"
@@ -12,7 +13,13 @@ import (
   log "github.com/sirupsen/logrus"
 )
 
+const (
+  CalculatePagesResourceTicker = "tickers"
+  CalculatePagesResourceStock  = "stocks"
+)
+
 type ClientService interface {
+  CalculatePages(input *domain.CalculatePagesInput) (int, error)
   GetTickers(input *domain.GetInput) ([]*domain.Ticker, error)
   GetStocks(input *domain.GetInput) ([]*domain.Stock, error)
   Subscribe(userId, tickerId string) error
@@ -220,7 +227,7 @@ func (s *service) GetSubscriptions(userId string, filterActive bool) ([]*domain.
 }
 
 func (s *service) GetStocksPredicts(userId string) (*domain.StocksPredicts, error) {
-  stored, err := s.storage.GetStocksPredicts(userId, utils.NowDateUTC())
+  stored, err := s.storage.GetStocksPredicts(userId, utils.NowDateUTC().Add(24*time.Hour))
   if err != nil {
     if errs.ErrIs(err, storage.ErrNotFoundInStorage) {
       return nil, errs.NewError(errs.ErrTypeNotFoundContent, nil)
@@ -288,4 +295,24 @@ func formStockPredictions(stored *storage.StocksPredicts) *domain.StocksPredicts
     ModelInfo: modelInfo,
     Parts:     parts,
   }
+}
+
+func (s *service) CalculatePages(input *domain.CalculatePagesInput) (int, error) {
+  var (
+    storageResource storage.Resource
+  )
+  switch input.Resource {
+  case CalculatePagesResourceTicker:
+    storageResource = storage.ResourceTicker
+  case CalculatePagesResourceStock:
+    storageResource = storage.ResourceStock
+  default:
+    return 0, errs.NewErrorWithMessage(errs.ErrTypeMalformedRequest,
+      "specified wrong resource", nil)
+  }
+  pagesCount, err := s.storage.CalculatePages(storageResource, input.PageSize)
+  if err != nil {
+    return 0, fmt.Errorf("cannot calculate storage pages: %v", err)
+  }
+  return pagesCount, nil
 }

@@ -39,6 +39,13 @@ definitions:
       created_at:
         type: string
     type: object
+  clientservice.PagesResponse:
+    properties:
+      success:
+        type: boolean
+      total_count:
+        type: integer
+    type: object
   clientservice.Pagination:
     properties:
       count:
@@ -331,6 +338,42 @@ paths:
       summary: Stocks model method
       tags:
       - Resources
+  /stocks/pages:
+    get:
+      description: Stocks pages method calculate total stocks pages count for specified
+        page size
+      parameters:
+      - in: query
+        name: page_size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/clientservice.PagesResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/errs.Error'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/errs.Error'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/errs.Error'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/errs.Error'
+      security:
+      - ApiKeyAuth: []
+      summary: Stocks pages method
+      tags:
+      - Resources
   /subscribe:
     post:
       description: Subscribe method create subscription model for client with specified
@@ -443,6 +486,42 @@ paths:
       security:
       - ApiKeyAuth: []
       summary: Tickers model method
+      tags:
+      - Resources
+  /tickers/pages:
+    get:
+      description: Tickers pages method calculate total tickers pages count for specified
+        page size
+      parameters:
+      - in: query
+        name: page_size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/clientservice.PagesResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/errs.Error'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/errs.Error'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/errs.Error'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/errs.Error'
+      security:
+      - ApiKeyAuth: []
+      summary: Tickers pages method
       tags:
       - Resources
   /unsubscribe:

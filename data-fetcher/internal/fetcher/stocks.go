@@ -102,6 +102,12 @@ func (f *fetcher) FetchInfo() error { // fetch tickers with details and their st
   if err = f.fetchStocksForStoredTickers(); err != nil {
     return fmt.Errorf("cannot fetch stocks for stored tickers: %v", err)
   }
+  //
+  // TODO: remove this
+  log.Infof("finished fecth stocks for stored tickers")
+  return nil
+  // TODO: remove this
+  //
   if err = f.fetchTickers(&fetchTickersOption{
     TickerId: f.tickerId, // if ticker id not specified will be fetched all tickers
   }); err != nil {
@@ -179,7 +185,16 @@ func (f *fetcher) fetchStocksForStoredTickers() error {
   if err != nil {
     return fmt.Errorf("cannot get ticker from storage: %v", err)
   }
+  mustPopularTickers := map[string]struct{}{ // TODO: remove this
+    "AMZN": {},
+    "AAPL": {},
+    "MSFT": {},
+    "IBM":  {},
+  }
   for _, ticker := range tickers {
+    if _, ok := mustPopularTickers[ticker.TickerId]; !ok { // TODO: remove this
+      continue
+    }
     if err = f.fetchStocks(&fetchStocksOption{
       TickerId:           ticker.TickerId,
       NotUseRequestState: true,
