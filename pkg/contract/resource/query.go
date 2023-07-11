@@ -111,7 +111,7 @@ func (q *Query) parsePagination() (*Pagination, error) {
 
     parts, err := splitPartForm(paginationPart, partsCount)
     if err != nil {
-      return nil, fmt.Errorf("pagination must have form [page:<p>|count:<c>]. error: %v", err)
+      return nil, fmt.Errorf("pagination must have form [page:<p>,count:<c>]. error: %v", err)
     }
     const (
       keyPage  = "page"
@@ -165,7 +165,7 @@ func (q *Query) parseSort() (*Sort, error) {
 
     parts, err := splitPartForm(sortPart, partsCount)
     if err != nil {
-      return nil, fmt.Errorf("sort must have form [field:<f>|order:<asc|desc>]. error: %v", err)
+      return nil, fmt.Errorf("sort must have form [field:<f>,order:<asc|desc>]. error: %v", err)
     }
     const (
       keyField = "field"
@@ -188,7 +188,7 @@ func (q *Query) parseSort() (*Sort, error) {
       }
     }
     if partField == "" || hasMalformedSortOrder(partOrder) {
-      return nil, fmt.Errorf("sort must have form [field:<f>|order:<asc|desc>]. error: one of parts not specified or malformed")
+      return nil, fmt.Errorf("sort must have form [field:<f>,order:<asc|desc>]. error: one of parts not specified or malformed")
     }
     parsedSort = &Sort{
       Field: partField,
@@ -236,7 +236,7 @@ func (q *Query) parseListFilters() ([]*Filter, error) {
   for _, list := range list {
     parts, err := splitPartForm(list, partsCount)
     if err != nil {
-      return nil, fmt.Errorf("list filter must have form [field:<f>|values:<v,...>]. error: %v", err)
+      return nil, fmt.Errorf("list filter must have form [field:<f>,values:<v|...>]. error: %v", err)
     }
     var (
       partField  string
@@ -260,7 +260,7 @@ func (q *Query) parseListFilters() ([]*Filter, error) {
       }
     }
     if partField == "" || len(partValues) == 0 {
-      return nil, fmt.Errorf("list filter must have form [field:<f>|values:<v,...>]. error: one of parts not specified or malformed")
+      return nil, fmt.Errorf("list filter must have form [field:<f>,values:<v|...>]. error: one of parts not specified or malformed")
     }
     castedValues := make([]any, 0, len(partValues))
 
@@ -291,7 +291,7 @@ func (q *Query) parseBetweenFilters() ([]*Filter, error) {
   for _, between := range between {
     parts, err := splitPartForm(between, partsCount)
     if err != nil {
-      return nil, fmt.Errorf("between filter must have form [field:<f>|left:<l>|right:<r>]. error: %v", err)
+      return nil, fmt.Errorf("between filter must have form [field:<f>,left:<l>,right:<r>]. error: %v", err)
     }
     var (
       partField string
@@ -316,7 +316,7 @@ func (q *Query) parseBetweenFilters() ([]*Filter, error) {
       }
     }
     if partField == "" || partLeft == "" || partRight == "" {
-      return nil, fmt.Errorf("between filter must have form [field:<f>|left:<l>|right:<r>]. error: one of parts not specified or malformed")
+      return nil, fmt.Errorf("between filter must have form [field:<f>,left:<l>,right:<r>]. error: one of parts not specified or malformed")
     }
     betweenFilters = append(betweenFilters, &Filter{
       Between: &BetweenFilter{
@@ -343,7 +343,7 @@ func (q *Query) parseBorderFilters() ([]*Filter, error) {
   for _, border := range borders {
     parts, err := splitPartForm(border, partsCount)
     if err != nil {
-      return nil, fmt.Errorf("border filter must have form [field:<f>|value:<v>|compare:<eq|gt|gte|lt|lte>]. error: %v", err)
+      return nil, fmt.Errorf("border filter must have form [field:<f>,value:<v>,compare:<eq|gt|gte|lt|lte>]. error: %v", err)
     }
     var (
       partField   string
@@ -368,7 +368,7 @@ func (q *Query) parseBorderFilters() ([]*Filter, error) {
       }
     }
     if partField == "" || partValue == "" || hasMalformedFilterCompare(partCompare) {
-      return nil, fmt.Errorf("border filter must have form [field:<f>|value:<v>|compare:<eq|gt|gte|lt|lte>]. error: one of parts not specified or malformed")
+      return nil, fmt.Errorf("border filter must have form [field:<f>,value:<v>,compare:<eq|gt|gte|lt|lte>]. error: one of parts not specified or malformed")
     }
     borderFilters = append(borderFilters, &Filter{
       Border: &BorderFilter{
